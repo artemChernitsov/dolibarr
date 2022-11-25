@@ -24,6 +24,7 @@
  * 	\brief      Page to list direct debit orders or credit transfer orders
  */
 
+// Load Dolibarr environment
 require '../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/prelevement/class/bonprelevement.class.php';
 require_once DOL_DOCUMENT_ROOT.'/compta/bank/class/account.class.php';
@@ -51,6 +52,8 @@ if (!$sortorder) {
 if (!$sortfield) {
 	$sortfield = "p.datec";
 }
+
+$optioncss = GETPOST('optioncss', 'alpha');
 
 // Get supervariables
 $statut = GETPOST('statut', 'int');
@@ -158,7 +161,9 @@ if ($result) {
 	print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
 	print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
 	print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
-
+	if ($type != '') {
+		print '<input type="hidden" name="type" value="'.$type.'">';
+	}
 	$titlekey = "WithdrawalsReceipts";
 	$title = $langs->trans("WithdrawalsReceipts");
 	if ($type == 'bank-transfer') {

@@ -24,6 +24,7 @@
  *       \brief      Page to define emailing targets
  */
 
+// Load Dolibarr environment
 require '../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/core/modules/mailings/modules_mailings.php';
 require_once DOL_DOCUMENT_ROOT.'/comm/mailing/class/mailing.class.php';
@@ -393,7 +394,7 @@ if ($object->fetch($id) >= 0) {
 					if (empty($obj->picto)) {
 						$obj->picto = 'generic';
 					}
-					print img_object($langs->trans("EmailingTargetSelector").': '.get_class($obj), $obj->picto, 'class="valignmiddle pictomodule"');
+					print img_object($langs->trans("EmailingTargetSelector").': '.get_class($obj), $obj->picto, 'class="valignmiddle pictomodule pictofixedwidth"');
 					print ' ';
 					print $obj->getDesc();
 					print '</div>';
@@ -515,7 +516,7 @@ if ($object->fetch($id) >= 0) {
 		$num = $db->num_rows($resql);
 
 		$param = "&id=".$object->id;
-		//if (! empty($contextpage) && $contextpage != $_SERVER["PHP_SELF"]) $param.='&contextpage='.urlencode($contextpage);
+		//if (!empty($contextpage) && $contextpage != $_SERVER["PHP_SELF"]) $param.='&contextpage='.urlencode($contextpage);
 		if ($limit > 0 && $limit != $conf->liste_limit) {
 			$param .= '&limit='.urlencode($limit);
 		}
@@ -543,7 +544,7 @@ if ($object->fetch($id) >= 0) {
 		if ($allowaddtarget) {
 			$morehtmlcenter = '<span class="opacitymedium hideonsmartphone">'.$langs->trans("ToClearAllRecipientsClickHere").'</span> <a href="'.$_SERVER["PHP_SELF"].'?clearlist=1&id='.$object->id.'" class="button reposition smallpaddingimp">'.$langs->trans("TargetsReset").'</a>';
 		}
-		$morehtmlcenter .= ' &nbsp; <a class="reposition" href="'.$_SERVER["PHP_SELF"].'?exportcsv=1&id='.$object->id.'">'.$langs->trans("Download").'</a>';
+		$morehtmlcenter .= ' &nbsp; <a class="reposition" href="'.$_SERVER["PHP_SELF"].'?action=exportcsv&token='.newToken().'&exportcsv=1&id='.$object->id.'">'.img_picto('', 'download', 'class="pictofixedwidth"').$langs->trans("Download").'</a>';
 
 		$massactionbutton = '';
 
@@ -632,10 +633,12 @@ if ($object->fetch($id) >= 0) {
 			include_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 			include_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
 			include_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
+			include_once DOL_DOCUMENT_ROOT.'/eventorganization/class/conferenceorboothattendee.class.php';
 			$objectstaticmember = new Adherent($db);
 			$objectstaticuser = new User($db);
 			$objectstaticcompany = new Societe($db);
 			$objectstaticcontact = new Contact($db);
+			$objectstaticeventorganization = new ConferenceOrBoothAttendee($db);
 
 			while ($i < min($num, $limit)) {
 				$obj = $db->fetch_object($resql);
@@ -661,6 +664,9 @@ if ($object->fetch($id) >= 0) {
 					} elseif ($obj->source_type == 'contact') {
 						$objectstaticcontact->fetch($obj->source_id);
 						print $objectstaticcontact->getNomUrl(1);
+					} elseif ($obj->source_type == 'eventorganizationattendee') {
+						$objectstaticeventorganization->fetch($obj->source_id);
+						print $objectstaticeventorganization->getNomUrl(1);
 					} else {
 						print $obj->source_url;
 					}

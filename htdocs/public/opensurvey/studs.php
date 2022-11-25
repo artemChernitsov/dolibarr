@@ -35,6 +35,7 @@ if (!defined('NOIPCHECK')) {
 	define('NOIPCHECK', '1'); // Do not check IP defined into conf $dolibarr_main_restrict_ip
 }
 
+// Load Dolibarr environment
 require '../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT."/core/lib/admin.lib.php";
 require_once DOL_DOCUMENT_ROOT."/core/lib/files.lib.php";
@@ -59,7 +60,7 @@ $canbemodified = ((empty($object->date_fin) || $object->date_fin > dol_now()) &&
 
 // Security check
 if (empty($conf->opensurvey->enabled)) {
-	accessforbidden('', 0, 0, 1);
+	httponly_accessforbidden('Module Survey not enabled');
 }
 
 
@@ -74,7 +75,7 @@ $listofvoters = explode(',', $_SESSION["savevoter"]);
 // Add comment
 if (GETPOST('ajoutcomment', 'alpha')) {
 	if (!$canbemodified) {
-		accessforbidden('', 0, 0, 1);
+		httponly_accessforbidden('ErrorForbidden');
 	}
 
 	$error = 0;
@@ -96,8 +97,34 @@ if (GETPOST('ajoutcomment', 'alpha')) {
 		$error++;
 	}
 
+	$user_ip = getUserRemoteIP();
+	$nb_post_max = getDolGlobalInt("MAIN_SECURITY_MAX_POST_ON_PUBLIC_PAGES_BY_IP_ADDRESS", 1000);
+
+	// Calculate nb of post for IP
+	$nb_post_ip = 0;
+	if ($nb_post_max > 0) {	// Calculate only if there is a limit to check
+		$sql = "SELECT COUNT(id_comment) as nb_comments";
+		$sql .= " FROM ".MAIN_DB_PREFIX."opensurvey_comments";
+		$sql .= " WHERE ip = '".$db->escape($user_ip)."'";
+		$resql = $db->query($sql);
+		if ($resql) {
+			$num = $db->num_rows($resql);
+			$i = 0;
+			while ($i < $num) {
+				$i++;
+				$obj = $db->fetch_object($resql);
+				$nb_post_ip = $obj->nb_comments;
+			}
+		}
+	}
+
+	if ($nb_post_max > 0 && $nb_post_ip >= $nb_post_max) {
+		setEventMessages($langs->trans("AlreadyTooMuchPostOnThisIPAdress"), null, 'errors');
+		$error++;
+	}
+
 	if (!$error) {
-		$resql = $object->addComment($comment, $comment_user);
+		$resql = $object->addComment($comment, $comment_user, $user_ip);
 
 		if (!$resql) {
 			dol_print_error($db);
@@ -108,21 +135,43 @@ if (GETPOST('ajoutcomment', 'alpha')) {
 // Add vote
 if (GETPOST("boutonp") || GETPOST("boutonp.x") || GETPOST("boutonp_x")) {		// boutonp for chrome, boutonp_x for firefox
 	if (!$canbemodified) {
-		accessforbidden('', 0, 0, 1);
+		httponly_accessforbidden('ErrorForbidden');
 	}
 
 	//Si le nom est bien entré
 	if (GETPOST('nom', 'alphanohtml')) {
 		$nouveauchoix = '';
 		for ($i = 0; $i < $nbcolonnes; $i++) {
-			if (GETPOSTISSET("choix$i") && GETPOST("choix$i") == '1') {
+			if (GETPOSTISSET("choix".$i) && GETPOST("choix".$i) == '1') {
 				$nouveauchoix .= "1";
-			} elseif (GETPOSTISSET("choix$i") && GETPOST("choix$i") == '2') {
+			} elseif (GETPOSTISSET("choix".$i) && GETPOST("choix".$i) == '2') {
 				$nouveauchoix .= "2";
 			} else {
 				$nouveauchoix .= "0";
 			}
 		}
+
+		$user_ip = getUserRemoteIP();
+		$nb_post_max = getDolGlobalInt("MAIN_SECURITY_MAX_POST_ON_PUBLIC_PAGES_BY_IP_ADDRESS", 1000);
+
+		// Calculate nb of post for IP
+		$nb_post_ip = 0;
+		if ($nb_post_max > 0) {	// Calculate only if there is a limit to check
+			$sql = "SELECT COUNT(id_users) as nb_records";
+			$sql .= " FROM ".MAIN_DB_PREFIX."opensurvey_user_studs";
+			$sql .= " WHERE ip = '".$db->escape($user_ip)."'";
+			$resql = $db->query($sql);
+			if ($resql) {
+				$num = $db->num_rows($resql);
+				$i = 0;
+				while ($i < $num) {
+					$i++;
+					$obj = $db->fetch_object($resql);
+					$nb_post_ip = $obj->nb_records;
+				}
+			}
+		}
+
 
 		$nom = substr(GETPOST("nom", 'alphanohtml'), 0, 64);
 
@@ -136,12 +185,16 @@ if (GETPOST("boutonp") || GETPOST("boutonp.x") || GETPOST("boutonp_x")) {		// bo
 		}
 
 		$num_rows = $db->num_rows($resql);
+
 		if ($num_rows > 0) {
 			setEventMessages($langs->trans("VoteNameAlreadyExists"), null, 'errors');
 			$error++;
+		} elseif ($nb_post_max > 0 && $nb_post_ip >= $nb_post_max) {
+			setEventMessages($langs->trans("AlreadyTooMuchPostOnThisIPAdress"), null, 'errors');
+			$error++;
 		} else {
-			$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'opensurvey_user_studs (nom, id_sondage, reponses)';
-			$sql .= " VALUES ('".$db->escape($nom)."', '".$db->escape($numsondage)."','".$db->escape($nouveauchoix)."')";
+			$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'opensurvey_user_studs (nom, id_sondage, reponses, ip)';
+			$sql .= " VALUES ('".$db->escape($nom)."', '".$db->escape($numsondage)."','".$db->escape($nouveauchoix)."', '".$db->escape($user_ip)."')";
 			$resql = $db->query($sql);
 
 			if ($resql) {
@@ -214,7 +267,7 @@ if ($testmodifier) {
 	}
 
 	if (!$canbemodified) {
-		accessforbidden('', 0, 0, 1);
+		httponly_accessforbidden('ErrorForbidden');
 	}
 
 	$idtomodify = GETPOST("idtomodify".$modifier);
@@ -232,7 +285,7 @@ if ($testmodifier) {
 $idcomment = GETPOST('deletecomment', 'int');
 if ($idcomment) {
 	if (!$canbemodified) {
-		accessforbidden('', 0, 0, 1);
+		httponly_accessforbidden('ErrorForbidden');
 	}
 
 	$resql = $object->deleteComment($idcomment);
@@ -695,7 +748,7 @@ if ($object->allow_spy) {
 		print '<tr>'."\n";
 		print '<td class="somme"></td>'."\n";
 		for ($i = 0; $i < $nbcolonnes; $i++) {
-			//print 'xx'.(! empty($listofanswers[$i]['format'])).'-'.$sumfor[$i].'-'.$meilleurecolonne;
+			//print 'xx'.(!empty($listofanswers[$i]['format'])).'-'.$sumfor[$i].'-'.$meilleurecolonne;
 			if (empty($listofanswers[$i]['format']) || !in_array($listofanswers[$i]['format'], array('yesno', 'foragainst')) && isset($sumfor[$i]) && isset($meilleurecolonne) && $sumfor[$i] == $meilleurecolonne) {
 				print '<td class="somme"><img src="'.dol_buildpath('/opensurvey/img/medaille.png', 1).'"></td>'."\n";
 			} else {

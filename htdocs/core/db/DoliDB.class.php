@@ -29,7 +29,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/db/Database.interface.php';
  */
 abstract class DoliDB implements Database
 {
-	/** @var bool|resource|SQLite3 Database handler */
+	/** @var bool|resource|SQLite3|PgSql\connection Database handler */
 	public $db;
 	/** @var string Database type */
 	public $type;
@@ -136,29 +136,27 @@ abstract class DoliDB implements Database
 	 *
 	 * @param   string 	$stringtosanitize 	String to escape
 	 * @param   int		$allowsimplequote 	1=Allow simple quotes in string. When string is used as a list of SQL string ('aa', 'bb', ...)
+	 * @param	string	$allowsequals		1=Allow equals sign
 	 * @return  string                      String escaped
 	 */
-	public function sanitize($stringtosanitize, $allowsimplequote = 0)
+	public function sanitize($stringtosanitize, $allowsimplequote = 0, $allowsequals = 0)
 	{
-		if ($allowsimplequote) {
-			return preg_replace('/[^a-z0-9_\-\.,\']/i', '', $stringtosanitize);
-		} else {
-			return preg_replace('/[^a-z0-9_\-\.,]/i', '', $stringtosanitize);
-		}
+		return preg_replace('/[^a-z0-9_\-\.,'.($allowsequals ? '=' : '').($allowsimplequote ? "\'" : '').']/i', '', $stringtosanitize);
 	}
 
 	/**
 	 * Start transaction
 	 *
-	 * @return	    int         1 if transaction successfuly opened or already opened, 0 if error
+	 * @param	string	$textinlog		Add a small text into log. '' by default.
+	 * @return	int         			1 if transaction successfuly opened or already opened, 0 if error
 	 */
-	public function begin()
+	public function begin($textinlog = '')
 	{
 		if (!$this->transaction_opened) {
 			$ret = $this->query("BEGIN");
 			if ($ret) {
 				$this->transaction_opened++;
-				dol_syslog("BEGIN Transaction", LOG_DEBUG);
+				dol_syslog("BEGIN Transaction".($textinlog ? ' '.$textinlog : ''), LOG_DEBUG);
 				dol_syslog('', 0, 1);
 			}
 			return $ret;

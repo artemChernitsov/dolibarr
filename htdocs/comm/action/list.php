@@ -27,10 +27,7 @@
  *		\brief      Page to list actions
  */
 
-if (!defined("NOREDIRECTBYMAINTOLOGIN")) {
-	define('NOREDIRECTBYMAINTOLOGIN', 1);
-}
-
+// Load Dolibarr environment
 require '../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
 require_once DOL_DOCUMENT_ROOT.'/comm/action/class/actioncomm.class.php';
@@ -576,7 +573,7 @@ if (empty($conf->global->MAIN_DISABLE_FULL_SCANLIST)) {
 		$nbtotalofrecords++;
 	}*/
 	/* The fast and low memory method to get and count full list converts the sql into a sql count */
-	$sqlforcount = preg_replace('/^SELECT[a-zA-Z0-9\._\s\(\),]+FROM/i', 'SELECT COUNT(*) as nbtotalofrecords FROM', $sql);
+	$sqlforcount = preg_replace('/^SELECT[a-zA-Z0-9\._\s\(\),=<>\:\-\']+\sFROM/Ui', 'SELECT COUNT(*) as nbtotalofrecords FROM', $sql);
 	$resql = $db->query($sqlforcount);
 	$objforcount = $db->fetch_object($resql);
 	$nbtotalofrecords = $objforcount->nbtotalofrecords;
@@ -718,7 +715,7 @@ include DOL_DOCUMENT_ROOT.'/core/tpl/massactions_pre.tpl.php';
 $moreforfilter = '';
 
 $varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
-$selectedfields = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage); // This also change content of $arrayfields
+$selectedfields = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')); // This also change content of $arrayfields
 if ($massactionbutton) {
 	$selectedfields .= $form->showCheckAddButtons('checkforselect', 1);
 }
@@ -732,6 +729,13 @@ print '<div class="div-table-responsive">';
 print '<table class="tagtable liste'.($moreforfilter ? " listwithfilterbefore" : "").'">'."\n";
 
 print '<tr class="liste_titre_filter">';
+// Action column
+if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+	print '<td class="liste_titre" align="middle">';
+	$searchpicto = $form->showFilterButtons('left');
+	print $searchpicto;
+	print '</td>';
+}
 if (!empty($arrayfields['a.id']['checked'])) {
 	print '<td class="liste_titre"><input type="text" class="maxwidth50" name="search_id" value="'.$search_id.'"></td>';
 }
@@ -798,10 +802,12 @@ if (!empty($arrayfields['a.percent']['checked'])) {
 	print '</td>';
 }
 // Action column
-print '<td class="liste_titre" align="middle">';
-$searchpicto = $form->showFilterButtons();
-print $searchpicto;
-print '</td>';
+if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+	print '<td class="liste_titre" align="middle">';
+	$searchpicto = $form->showFilterButtons();
+	print $searchpicto;
+	print '</td>';
+}
 print '</tr>'."\n";
 
 $totalarray = array();
@@ -810,6 +816,9 @@ $totalarray['nbfield'] = 0;
 // Fields title label
 // --------------------------------------------------------------------
 print '<tr class="liste_titre">';
+if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+	print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', '', 'align="center"', $sortfield, $sortorder, 'maxwidthsearch ');
+}
 if (!empty($arrayfields['a.id']['checked'])) {
 	print_liste_field_titre($arrayfields['a.id']['label'], $_SERVER["PHP_SELF"], "a.id", $param, "", "", $sortfield, $sortorder);
 	$totalarray['nbfield']++;
@@ -830,7 +839,7 @@ if (!empty($arrayfields['a.note']['checked'])) {
 	print_liste_field_titre($arrayfields['a.note']['label'], $_SERVER["PHP_SELF"], "a.note", $param, "", "", $sortfield, $sortorder);
 	$totalarray['nbfield']++;
 }
-//if (! empty($conf->global->AGENDA_USE_EVENT_TYPE))
+//if (!empty($conf->global->AGENDA_USE_EVENT_TYPE))
 if (!empty($arrayfields['a.datep']['checked'])) {
 	print_liste_field_titre($arrayfields['a.datep']['label'], $_SERVER["PHP_SELF"], "a.datep,a.id", $param, '', 'align="center"', $sortfield, $sortorder);
 	$totalarray['nbfield']++;
@@ -871,7 +880,9 @@ if (!empty($arrayfields['a.percent']['checked'])) {
 	print_liste_field_titre("Status", $_SERVER["PHP_SELF"], "a.percent", $param, "", 'align="center"', $sortfield, $sortorder);
 	$totalarray['nbfield']++;
 }
-print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', '', 'align="center"', $sortfield, $sortorder, 'maxwidthsearch ');
+if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+	print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', '', 'align="center"', $sortfield, $sortorder, 'maxwidthsearch ');
+}
 $totalarray['nbfield']++;
 print "</tr>\n";
 
@@ -924,7 +935,18 @@ while ($i < $imaxinloop) {
 	}
 
 	print '<tr class="oddeven">';
-
+	// Action column
+	if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+		print '<td class="nowrap center">';
+		if ($massactionbutton || $massaction) {   // If we are in select mode (massactionbutton defined) or if we have already selected and sent an action ($massaction) defined
+			$selected = 0;
+			if (in_array($obj->id, $arrayofselected)) {
+				$selected = 1;
+			}
+			print '<input id="cb'.$obj->id.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.$obj->id.'"'.($selected ? ' checked="checked"' : '').'>';
+		}
+		print '</td>';
+	}
 	// Ref
 	if (!empty($arrayfields['a.id']['checked'])) {
 		print '<td class="nowraponall">';
@@ -952,7 +974,7 @@ while ($i < $imaxinloop) {
 		if (empty($conf->global->AGENDA_USE_EVENT_TYPE) && empty($arraylist[$labeltype])) {
 			$labeltype = 'AC_OTH';
 		}
-		if ($actionstatic->type_code == 'AC_OTH' && $actionstatic->code == 'TICKET_MSG') {
+		if (preg_match('/^TICKET_MSG/', $actionstatic->code)) {
 			$labeltype = $langs->trans("Message");
 		} else {
 			if (!empty($arraylist[$labeltype])) {
@@ -1103,15 +1125,17 @@ while ($i < $imaxinloop) {
 		print '<td align="center" class="nowrap">'.$actionstatic->LibStatut($obj->percent, 5, 0, $datep).'</td>';
 	}
 	// Action column
-	print '<td class="nowrap center">';
-	if ($massactionbutton || $massaction) {   // If we are in select mode (massactionbutton defined) or if we have already selected and sent an action ($massaction) defined
-		$selected = 0;
-		if (in_array($obj->id, $arrayofselected)) {
-			$selected = 1;
+	if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+		print '<td class="nowrap center">';
+		if ($massactionbutton || $massaction) {   // If we are in select mode (massactionbutton defined) or if we have already selected and sent an action ($massaction) defined
+			$selected = 0;
+			if (in_array($obj->id, $arrayofselected)) {
+				$selected = 1;
+			}
+			print '<input id="cb'.$obj->id.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.$obj->id.'"'.($selected ? ' checked="checked"' : '').'>';
 		}
-		print '<input id="cb'.$obj->id.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.$obj->id.'"'.($selected ? ' checked="checked"' : '').'>';
+		print '</td>';
 	}
-	print '</td>';
 
 	print '</tr>'."\n";
 
