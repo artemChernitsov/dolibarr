@@ -2052,7 +2052,8 @@ if (($id > 0 || !empty($ref)) || $projectidforalltimes > 0 || $allprojectforuser
 				$value = price2num($task_time->thm * $task_time->task_duration / 3600, 'MT', 1);
 
 				print '<td class="nowraponall right">';
-				print '<span class="amount" title="'.$langs->trans("THM").': '.price($task_time->thm).'">';
+if (!empty($user->rights->salaries->readall)) {			
+	print '<span class="amount" title="'.$langs->trans("THM").': '.price($task_time->thm).'">';
 				print price($value, 1, $langs, 1, -1, -1, $conf->currency);
 				print '</span>';
 				print '</td>';
@@ -2068,7 +2069,7 @@ if (($id > 0 || !empty($ref)) || $projectidforalltimes > 0 || $allprojectforuser
 				}
 				$totalarray['totalvalue'] += $value;
 			}
-
+}
 			// Invoiced
 			if (!empty($arrayfields['valuebilled']['checked'])) {
 				print '<td class="center">'; // invoice_id and invoice_line_id
