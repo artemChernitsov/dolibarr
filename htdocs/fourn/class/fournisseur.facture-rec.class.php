@@ -1331,7 +1331,7 @@ class FactureFournisseurRec extends CommonInvoice
 						// We refresh the object in order to have all necessary data (like date_lim_reglement)
 						$new_fac_fourn->fetch($new_fac_fourn->id);
 						$result = $new_fac_fourn->generateDocument($facturerec->model_pdf, $langs);
-						if ($result <= 0) {
+						if ($result < 0) {
 							$this->errors = $new_fac_fourn->errors;
 							$this->error = $new_fac_fourn->error;
 							$error++;
@@ -1771,7 +1771,7 @@ class FactureFournisseurRec extends CommonInvoice
 		}
 
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element;
-		$sql .= " SET frequency = ".($frequency ? ((int) $this->db->escape($frequency)) : "NULL");
+		$sql .= " SET frequency = ".($frequency ? ((int) $frequency) : "NULL");
 		if (!empty($unit)) {
 			$sql .= ", unit_frequency = '".$this->db->escape($unit)."'";
 		}

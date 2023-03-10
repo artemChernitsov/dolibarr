@@ -39,6 +39,9 @@ class FormProjets
 	 */
 	public $error = '';
 
+	public $errors = array();
+
+
 	public $nboftasks;
 
 
@@ -375,7 +378,7 @@ class FormProjets
 				include_once DOL_DOCUMENT_ROOT.'/core/lib/ajax.lib.php';
 				$comboenhancement = ajax_combobox($htmlname, '', 0, $forcefocus);
 				$out .= $comboenhancement;
-				$morecss = 'minwidth200 maxwidth500';
+				$morecss .= ' minwidth200 maxwidth500';
 			}
 
 			if (empty($option_only)) {
@@ -622,6 +625,8 @@ class FormProjets
 		if ($resql) {
 			$num = $this->db->num_rows($resql);
 			$i = 0;
+			$sellist = '';
+
 			if ($num > 0) {
 				$sellist = '<select class="flat elementselect css'.$table_element.($morecss ? ' '.$morecss : '').'" name="elementselect">';
 				$sellist .= '<option value="-1"'.($placeholder ? ' class="optiongrey"' : '').'>'.$placeholder.'</option>';

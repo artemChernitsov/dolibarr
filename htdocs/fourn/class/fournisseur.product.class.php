@@ -31,7 +31,6 @@
 
 require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 require_once DOL_DOCUMENT_ROOT.'/fourn/class/fournisseur.class.php';
-require_once DOL_DOCUMENT_ROOT.'/product/dynamic_price/class/price_parser.class.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/productfournisseurprice.class.php';
 
 
@@ -638,7 +637,8 @@ class ProductFournisseur extends Product
 				}
 				$this->packaging = $obj->packaging;
 
-				if (empty($ignore_expression) && !empty($this->fk_supplier_price_expression)) {
+				if (isModEnabled('dynamicprices') && empty($ignore_expression) && !empty($this->fk_supplier_price_expression)) {
+					require_once DOL_DOCUMENT_ROOT.'/product/dynamic_price/class/price_parser.class.php';
 					$priceparser = new PriceParser($this->db);
 					$price_result = $priceparser->parseProductSupplier($this);
 					if ($price_result >= 0) {
@@ -674,6 +674,7 @@ class ProductFournisseur extends Product
 	 *    @param	int		$offset		Offset
 	 *    @param	int		$socid		Filter on a third party id
 	 *    @return	array				Array of ProductFournisseur with new properties to define supplier price
+	 *    @see find_min_price_product_fournisseur()
 	 */
 	public function list_product_fournisseur_price($prodid, $sortfield = '', $sortorder = '', $limit = 0, $offset = 0, $socid = 0)
 	{
@@ -748,6 +749,7 @@ class ProductFournisseur extends Product
 				}
 
 				if (isModEnabled('dynamicprices') && !empty($prodfourn->fk_supplier_price_expression)) {
+					require_once DOL_DOCUMENT_ROOT.'/product/dynamic_price/class/price_parser.class.php';
 					$priceparser = new PriceParser($this->db);
 					$price_result = $priceparser->parseProductSupplier($prodfourn);
 					if ($price_result >= 0) {
@@ -783,6 +785,7 @@ class ProductFournisseur extends Product
 	 *  @param	int		$qty		Minimum quantity
 	 *  @param	int		$socid		get min price for specific supplier
 	 *  @return int					<0 if KO, 0=Not found of no product id provided, >0 if OK
+	 *  @see list_product_fournisseur_price()
 	 */
 	public function find_min_price_product_fournisseur($prodid, $qty = 0, $socid = 0)
 	{
@@ -860,6 +863,8 @@ class ProductFournisseur extends Product
 						$prod_supplier->fourn_qty = $record["quantity"];
 						$prod_supplier->fourn_tva_tx = $record["tva_tx"];
 						$prod_supplier->fk_supplier_price_expression = $record["fk_supplier_price_expression"];
+
+						require_once DOL_DOCUMENT_ROOT.'/product/dynamic_price/class/price_parser.class.php';
 						$priceparser = new PriceParser($this->db);
 						$price_result = $priceparser->parseProductSupplier($prod_supplier);
 						if ($price_result >= 0) {

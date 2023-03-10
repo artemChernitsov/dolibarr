@@ -84,6 +84,11 @@ if ($action == 'update') {
 					$error++;
 				}
 			}
+			if (GETPOSTISSET($constvalue.'_TENANT')) {
+				if (!dolibarr_set_const($db, $constvalue.'_TENANT', GETPOST($constvalue.'_TENANT'), 'chaine', 0, '', $conf->entity)) {
+					$error++;
+				}
+			}
 			if (GETPOSTISSET($constvalue.'_SCOPE')) {
 				if (is_array(GETPOST($constvalue.'_SCOPE'))) {
 					$scopestring = implode(',', GETPOST($constvalue.'_SCOPE'));
@@ -128,6 +133,8 @@ if ($action == 'confirm_delete') {
 			$callbacktodel .= '/core/modules/oauth/stripelive_oauthcallback.php?action=delete&keyforprovider='.$provider.'&token='.newToken().'&backtourl='.urlencode($backtourl);
 		} elseif ($label == 'OAUTH_STRIPE_TEST') {
 			$callbacktodel .= '/core/modules/oauth/stripetest_oauthcallback.php?action=delete&keyforprovider='.$provider.'&token='.newToken().'&backtourl='.urlencode($backtourl);
+		} elseif ($label == 'OAUTH_MICROSOFT') {
+			$callbacktodel .= '/core/modules/oauth/microsoft_oauthcallback.php?action=delete&keyforprovider='.$provider.'&token='.newToken().'&backtourl='.urlencode($backtourl);
 		} elseif ($label == 'OAUTH_OTHER') {
 			$callbacktodel .= '/core/modules/oauth/generic_oauthcallback.php?action=delete&keyforprovider='.$provider.'&token='.newToken().'&backtourl='.urlencode($backtourl);
 		}
@@ -242,8 +249,10 @@ if (count($listinsetup) > 0) {
 		$keyforsupportedoauth2array = preg_replace('/^OAUTH_/', '', $keyforsupportedoauth2array);
 		$keyforsupportedoauth2array = preg_replace('/_NAME$/', '', $keyforsupportedoauth2array);
 		if (preg_match('/^.*-/', $keyforsupportedoauth2array)) {
+			$keybeforeprovider = preg_replace('/-.*$/', '', $keyforsupportedoauth2array);
 			$keyforprovider = preg_replace('/^.*-/', '', $keyforsupportedoauth2array);
 		} else {
+			$keybeforeprovider = $keyforsupportedoauth2array;
 			$keyforprovider = '';
 		}
 		$keyforsupportedoauth2array = preg_replace('/-.*$/', '', $keyforsupportedoauth2array);
@@ -285,7 +294,7 @@ if (count($listinsetup) > 0) {
 		// Delete
 		print '<td>';
 		$label = preg_replace('/_NAME$/', '', $keyforsupportedoauth2array);
-		print '<a href="'.$_SERVER["PHP_SELF"].'?action=delete&token='.newToken().'&provider='.$keyforprovider.'&label='.$label.'">';
+		print '<a href="'.$_SERVER["PHP_SELF"].'?action=delete&token='.newToken().'&provider='.urlencode($keyforprovider).'&label='.urlencode($label).'">';
 		print img_picto('', 'delete');
 		print '</a>';
 
@@ -298,7 +307,8 @@ if (count($listinsetup) > 0) {
 			$redirect_uri = $urlwithroot.'/core/modules/oauth/'.$supportedoauth2array[$keyforsupportedoauth2array]['callbackfile'].'_oauthcallback.php';
 			print '<tr class="oddeven value">';
 			print '<td>'.$langs->trans("UseTheFollowingUrlAsRedirectURI").'</td>';
-			print '<td><input style="width: 80%" type"text" name="uri'.$keyforsupportedoauth2array.'" value="'.$redirect_uri.'" disabled>';
+			print '<td><input style="width: 80%" type="text" name="uri'.$keyforsupportedoauth2array.'" id="uri'.$keyforsupportedoauth2array.$keyforprovider.'" value="'.$redirect_uri.'" disabled>';
+			print ajax_autoselect('uri'.$keyforsupportedoauth2array.$keyforprovider);
 			print '</td>';
 			print '<td></td>';
 			print '</tr>';
@@ -306,7 +316,7 @@ if (count($listinsetup) > 0) {
 			if ($keyforsupportedoauth2array == 'OAUTH_OTHER_NAME') {
 				print '<tr class="oddeven value">';
 				print '<td>'.$langs->trans("URLOfServiceForAuthorization").'</td>';
-				print '<td><input style="width: 80%" type"text" name="'.$key[3].'" value="'.getDolGlobalString($key[3]).'" >';
+				print '<td><input style="width: 80%" type="text" name="'.$key[3].'" value="'.getDolGlobalString($key[3]).'" >';
 				print '</td>';
 				print '<td></td>';
 				print '</tr>';
@@ -335,6 +345,16 @@ if (count($listinsetup) > 0) {
 		print '</td>';
 		print '<td></td>';
 		print '</tr>';
+
+		// Tenant
+		if ($keybeforeprovider == 'MICROSOFT') {
+			print '<tr class="oddeven value">';
+			print '<td><label for="'.$key[2].'">'.$langs->trans("OAUTH_TENANT").'</label></td>';
+			print '<td><input type="text" size="100" id="OAUTH_'.$keybeforeprovider.($keyforprovider ? '-'.$keyforprovider : '').'_TENANT" name="OAUTH_'.$keybeforeprovider.($keyforprovider ? '-'.$keyforprovider : '').'_TENANT" value="'.getDolGlobalString('OAUTH_'.$keybeforeprovider.($keyforprovider ? '-'.$keyforprovider : '').'_TENANT').'">';
+			print '</td>';
+			print '<td></td>';
+			print '</tr>';
+		}
 
 		// TODO Move this into token generation ?
 		if ($supported) {
@@ -385,7 +405,7 @@ if (count($listinsetup) > 0) {
 
 	print '</div>';
 
-	print $form->buttonsSaveCancel("Modify", '');
+	print $form->buttonsSaveCancel("Save", '');
 
 	print '</form>';
 }

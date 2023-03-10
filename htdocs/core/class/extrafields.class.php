@@ -10,6 +10,7 @@
  * Copyright (C) 2016       Raphaël Doursenaud      <rdoursenaud@gpcsolutions.fr>
  * Copyright (C) 2017       Nicolas ZABOURI         <info@inovea-conseil.com>
  * Copyright (C) 2018-2022  Frédéric France         <frederic.france@netlogic.fr>
+ * Copyright (C) 2022 		Antonin MARCHAL         <antonin@letempledujeu.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1232,7 +1233,7 @@ class ExtraFields
 							$InfoFieldList[4] = str_replace('$ID$', '0', $InfoFieldList[4]);
 						}
 						//We have to join on extrafield table
-						if (strpos($InfoFieldList[4], 'extra') !== false) {
+						if (strpos($InfoFieldList[4], 'extra.') !== false) {
 							$sql .= ' as main, '.$this->db->prefix().$InfoFieldList[0].'_extrafields as extra';
 							$sqlwhere .= " WHERE extra.fk_object=main.".$InfoFieldList[2]." AND ".$InfoFieldList[4];
 						} else {
@@ -1493,15 +1494,15 @@ class ExtraFields
 							$labeltoshow = dol_trunc($labeltoshow, 45);
 
 							if (is_array($value_arr) && in_array($obj->rowid, $value_arr)) {
+								$labeltoshow = '';
 								foreach ($fields_label as $field_toshow) {
 									$translabel = $langs->trans($obj->$field_toshow);
 									if ($translabel != $obj->$field_toshow) {
-										$labeltoshow = dol_trunc($translabel, 18).' ';
+										$labeltoshow .= ' '.dol_trunc($translabel, 18).' ';
 									} else {
-										$labeltoshow = dol_trunc($obj->$field_toshow, 18).' ';
+										$labeltoshow .= ' '.dol_trunc($obj->$field_toshow, 18).' ';
 									}
 								}
-
 								$data[$obj->rowid] = $labeltoshow;
 							} else {
 								if (!$notrans) {
@@ -1689,7 +1690,7 @@ class ExtraFields
 
 			$sql = "SELECT ".$keyList;
 			$sql .= ' FROM '.$this->db->prefix().$InfoFieldList[0];
-			if (!empty($InfoFieldList[4]) && strpos($InfoFieldList[4], 'extra') !== false) {
+			if (!empty($InfoFieldList[4]) && strpos($InfoFieldList[4], 'extra.') !== false) {
 				$sql .= ' as main';
 			}
 			if ($selectkey == 'rowid' && empty($value)) {
@@ -1758,7 +1759,12 @@ class ExtraFields
 				dol_syslog(get_class($this).'::showOutputField error '.$this->db->lasterror(), LOG_WARNING);
 			}
 		} elseif ($type == 'radio') {
-			$value = $langs->trans($param['options'][$value]);
+			if (!isset($param['options'][$value])) {
+				$langs->load('errors');
+				$value = $langs->trans('ErrorNoValueForRadioType');
+			} else {
+				$value = $langs->trans($param['options'][$value]);
+			}
 		} elseif ($type == 'checkbox') {
 			$value_arr = explode(',', $value);
 			$value = '';
@@ -1800,7 +1806,7 @@ class ExtraFields
 
 			$sql = "SELECT ".$keyList;
 			$sql .= " FROM ".$this->db->prefix().$InfoFieldList[0];
-			if (strpos($InfoFieldList[4], 'extra') !== false) {
+			if (strpos($InfoFieldList[4], 'extra.') !== false) {
 				$sql .= ' as main';
 			}
 			// $sql.= " WHERE ".$selectkey."='".$this->db->escape($value)."'";
@@ -1817,17 +1823,20 @@ class ExtraFields
 						$fields_label = explode('|', $InfoFieldList[1]);
 						if (is_array($value_arr) && in_array($obj->rowid, $value_arr)) {
 							if (is_array($fields_label) && count($fields_label) > 1) {
+								$label = '<li class="select2-search-choice-dolibarr noborderoncategories" style="background: #bbb">';
 								foreach ($fields_label as $field_toshow) {
 									$translabel = '';
 									if (!empty($obj->$field_toshow)) {
 										$translabel = $langs->trans($obj->$field_toshow);
 									}
 									if ($translabel != $field_toshow) {
-										$toprint[] = '<li class="select2-search-choice-dolibarr noborderoncategories" style="background: #bbb">'.dol_trunc($translabel, 18).'</li>';
+										$label .= ' '.dol_trunc($translabel, 18);
 									} else {
-										$toprint[] = '<li class="select2-search-choice-dolibarr noborderoncategories" style="background: #bbb">'.$obj->$field_toshow.'</li>';
+										$label .= ' '.$obj->$field_toshow;
 									}
 								}
+								$label .= '</li>';
+								$toprint[] = $label;
 							} else {
 								$translabel = '';
 								if (!empty($obj->{$InfoFieldList[1]})) {
@@ -1966,11 +1975,13 @@ class ExtraFields
 		if (!empty($extrafield_param) && is_array($extrafield_param)) {
 			$extrafield_param_list = array_keys($extrafield_param['options']);
 		}
+
+		// Set $extrafield_collapse_display_value (do we have to collapse/expand the group after the separator)
 		$extrafield_collapse_display_value = -1;
 		$expand_display = false;
 		if (is_array($extrafield_param_list) && count($extrafield_param_list) > 0) {
 			$extrafield_collapse_display_value = intval($extrafield_param_list[0]);
-			$expand_display = ((isset($_COOKIE['DOLCOLLAPSE_'.$object->table_element.'_extrafields_'.$key]) || GETPOST('ignorecollapsesetup', 'int')) ? ($_COOKIE['DOLCOLLAPSE_'.$object->table_element.'_extrafields_'.$key] ? true : false) : ($extrafield_collapse_display_value == 2 ? false : true));
+			$expand_display = ((isset($_COOKIE['DOLCOLLAPSE_'.$object->table_element.'_extrafields_'.$key]) || GETPOST('ignorecollapsesetup', 'int')) ? (empty($_COOKIE['DOLCOLLAPSE_'.$object->table_element.'_extrafields_'.$key]) ? false : true) : ($extrafield_collapse_display_value == 2 ? false : true));
 		}
 		if ($mode == 'create') {
 			$extrafield_collapse_display_value = 0;
@@ -1980,7 +1991,7 @@ class ExtraFields
 		$out .= '<'.$tagtype_dyn.' '.(!empty($colspan)?'colspan="' . $colspan . '"':'').'>';
 		// Some js code will be injected here to manage the collapsing of extrafields
 		// Output the picto
-		$out .= '<span class="cursorpointer '.($extrafield_collapse_display_value == 0 ? 'fas fa-square opacitymedium' : 'far fa-'.(($expand_display ? 'minus' : 'plus').'-square')).'"></span>';
+		$out .= '<span class="'.($extrafield_collapse_display_value ? 'cursorpointer ' : '').($extrafield_collapse_display_value == 0 ? 'fas fa-square opacitymedium' : 'far fa-'.(($expand_display ? 'minus' : 'plus').'-square')).'"></span>';
 		$out .= '&nbsp;';
 		$out .= '<strong>';
 		$out .= $langs->trans($this->attributes[$object->table_element]['label'][$key]);

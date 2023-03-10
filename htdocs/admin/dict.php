@@ -513,7 +513,7 @@ $tabcond[25] = isModEnabled('website');
 $tabcond[27] = isModEnabled("societe");
 $tabcond[28] = isModEnabled('holiday');
 $tabcond[29] = isModEnabled('project');
-$tabcond[30] = isModEnabled('label');
+$tabcond[30] = (isModEnabled('label') || isModEnabled('barcode') || isModEnabled('adherent'));	// stickers format dictionary
 //$tabcond[31]= isModEnabled('accounting');
 $tabcond[32] = (isModEnabled('holiday') || isModEnabled('hrm'));
 $tabcond[33] = isModEnabled('hrm');
@@ -1571,7 +1571,6 @@ if ($id > 0) {
 			unset($fieldlist[2]); // Remove field ??? if dictionary Regions
 		}
 
-
 		if (empty($reshook)) {
 			fieldList($fieldlist, $obj, $tabname[$id], 'add');
 		}
@@ -1927,8 +1926,8 @@ if ($id > 0) {
 					if (!is_null($withentity)) {
 						print '<input type="hidden" name="entity" value="'.$withentity.'">';
 					}
-					print '<input type="submit" class="button button-edit" name="actionmodify" value="'.$langs->trans("Modify").'">';
-					print '<input type="submit" class="button button-cancel" name="actioncancel" value="'.$langs->trans("Cancel").'">';
+					print '<input type="submit" class="button button-edit small" name="actionmodify" value="'.$langs->trans("Modify").'">';
+					print '<input type="submit" class="button button-cancel small" name="actioncancel" value="'.$langs->trans("Cancel").'">';
 					print '</td>';
 				} else {
 					$tmpaction = 'view';
@@ -1966,7 +1965,7 @@ if ($id > 0) {
 									$valuetoshow = ($key != "Country".strtoupper($obj->country_code) ? $obj->country_code." - ".$key : $obj->country);
 								}
 							} elseif ($value == 'recuperableonly' || $value == 'deductible' || $value == 'category_type') {
-								$valuetoshow = yn($valuetoshow);
+								$valuetoshow = yn($valuetoshow ? 1 : 0);
 								$class = "center";
 							} elseif ($value == 'type_cdr') {
 								if (empty($valuetoshow)) {
@@ -2510,11 +2509,11 @@ function fieldList($fieldlist, $obj = '', $tabname = '', $context = '')
 			print '</td>';
 		} elseif ($value == 'block_if_negative') {
 			print '<td>';
-			print $form->selectyesno("block_if_negative", (!empty($obj->{$value}) ? $obj->{$value}:''), 1);
+			print $form->selectyesno("block_if_negative", (empty($obj->block_if_negative) ? '' : $obj->block_if_negative), 1);
 			print '</td>';
 		} elseif ($value == 'type_duration') {
 			print '<td>';
-			print $form->selectTypeDuration('', $obj->{$value}, array('i','h'));
+			print $form->selectTypeDuration('', (empty($obj->type_duration) ? '' : $obj->type_duration), array('i','h'));
 			print '</td>';
 		} else {
 			$fieldValue = isset($obj->{$value}) ? $obj->{$value}: '';
@@ -2531,7 +2530,7 @@ function fieldList($fieldlist, $obj = '', $tabname = '', $context = '')
 				$classtd = 'right'; $class = 'maxwidth50 right';
 			}
 			if (in_array($fieldlist[$field], array('pos', 'position'))) {
-				$classtd = 'center'; $class = 'maxwidth50 center';
+				$classtd = 'right'; $class = 'maxwidth50 right';
 			}
 			if (in_array($fieldlist[$field], array('dayrule', 'day', 'month', 'year', 'use_default', 'affect', 'delay', 'public', 'sortorder', 'sens', 'category_type', 'fk_parent'))) {
 				$class = 'maxwidth50 center';

@@ -194,7 +194,7 @@ $warehouse = new Entrepot($db);
 $now = dol_now();
 
 $help_url = 'EN:Module_Stocks_En|FR:Module_Stock|ES:M&oacute;dulo_Stocks';
-$title = $langs->trans("ListOfWarehouses");
+$title = $langs->trans("Warehouses");
 
 $totalarray = array();
 $totalarray['nbfield'] = 0;
@@ -533,7 +533,7 @@ print $hookmanager->resPrint;
 // Status
 if (!empty($arrayfields['t.statut']['checked'])) {
 	print '<td class="liste_titre center">';
-	print $form->selectarray('search_status', $warehouse->statuts, $search_status, 1, 0, 0, '', 1);
+	print $form->selectarray('search_status', $warehouse->statuts, $search_status, 1, 0, 0, '', 1, 0, 0, '', 'onrightofpage');
 	print '</td>';
 }
 

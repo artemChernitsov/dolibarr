@@ -223,7 +223,7 @@ class pdf_standard_myobject extends ModelePDFMyObject
 
 						foreach ($objphoto->liste_photos($dir, 1) as $key => $obj)
 						{
-							if (empty($conf->global->CAT_HIGH_QUALITY_IMAGES))		// If CAT_HIGH_QUALITY_IMAGES not defined, we use thumb if defined and then original photo
+							if (!getDolGlobalInt('CAT_HIGH_QUALITY_IMAGES'))		// If CAT_HIGH_QUALITY_IMAGES not defined, we use thumb if defined and then original photo
 							{
 								if ($obj['photo_vignette'])
 								{
@@ -879,7 +879,7 @@ class pdf_standard_myobject extends ModelePDFMyObject
 	/**
 	 *  Show top header of page.
 	 *
-	 *  @param	Tcpdf			$pdf     		Object PDF
+	 *  @param	TCPDF		$pdf     		Object PDF
 	 *  @param  Object		$object     	Object to show
 	 *  @param  int	    	$showaddress    0=no, 1=yes
 	 *  @param  Translate	$outputlangs	Object lang for output

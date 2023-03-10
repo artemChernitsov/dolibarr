@@ -295,7 +295,7 @@ if (empty($reshook)) {
 		}
 
 		if (!$error && empty($conf->global->EXPENSEREPORT_ALLOW_OVERLAPPING_PERIODS)) {
-			$overlappingExpenseReportID = $object->periode_existe($fuser, $object->date_debut, $object->date_fin, true);
+			$overlappingExpenseReportID = $object->periode_existe($fuser, $object->date_debut, $object->date_fin);
 
 			if ($overlappingExpenseReportID > 0) {
 				$error++;
@@ -1210,11 +1210,17 @@ if (empty($reshook)) {
 
 				unset($date);
 			} else {
+				$error++;
 				setEventMessages($object->error, $object->errors, 'errors');
 			}
 		}
 
-		$action = '';
+		if (!$error) {
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".GETPOST('id', 'int'));
+			exit;
+		} else {
+			$action = '';
+		}
 	}
 
 	if ($action == 'confirm_delete_line' && GETPOST("confirm", 'alpha') == "yes" && $user->rights->expensereport->creer) {
@@ -2297,7 +2303,7 @@ if ($action == 'create') {
 							}
 						}
 
-						$tredited = 'tredited';
+						$tredited = 'tredited';	// Case the addfile and linkto file is used for edit (used by following tpl)
 						include DOL_DOCUMENT_ROOT.'/expensereport/tpl/expensereport_addfile.tpl.php';
 						include DOL_DOCUMENT_ROOT.'/expensereport/tpl/expensereport_linktofile.tpl.php';
 
@@ -2455,6 +2461,7 @@ if ($action == 'create') {
 				print '</script>'."\n";
 				print '</td></tr>';
 
+				$tredited = '';	// Case the addfile and linkto file is used for edit (used by following tpl)
 				include DOL_DOCUMENT_ROOT.'/expensereport/tpl/expensereport_linktofile.tpl.php';
 				include DOL_DOCUMENT_ROOT.'/expensereport/tpl/expensereport_addfile.tpl.php';
 
@@ -2517,6 +2524,7 @@ if ($action == 'create') {
 				print '<td class="right inputvat">';
 				$defaultvat = -1;
 				if (!empty($conf->global->EXPENSEREPORT_NO_DEFAULT_VAT)) {
+					// If option to have no default VAT on expense report is on, we force MAIN_VAT_DEFAULT_IF_AUTODETECT_FAILS
 					$conf->global->MAIN_VAT_DEFAULT_IF_AUTODETECT_FAILS = 'none';
 				}
 				print $form->load_tva('vatrate', (!empty($vatrate) ? $vatrate : $defaultvat), $mysoc, '', 0, 0, '', false, 1);
@@ -2554,8 +2562,8 @@ if ($action == 'create') {
 
 			print '</table>';
 			print '</div>';
-			//var_dump($object);
-			print '<script javascript>
+
+			print '<script>
 
 			/* JQuery for product free or predefined select */
 			jQuery(document).ready(function() {
@@ -2571,6 +2579,10 @@ if ($action == 'create') {
 						jQuery("#value_unit_ht").val("");
 					}
 				});
+			';
+
+			if (! empty($conf->global->MAIN_USE_EXPENSE_IK)) {
+				print '
 
                 /* unit price coéf calculation */
                 jQuery(".input_qty, #fk_c_type_fees, #select_fk_c_exp_tax_cat, #vatrate ").change(function(event) {
@@ -2616,6 +2628,10 @@ if ($action == 'create') {
 						jQuery("#value_unit_ht").val("");
 					}*/
 				});
+				';
+			}
+
+			print '
 
 			});
 

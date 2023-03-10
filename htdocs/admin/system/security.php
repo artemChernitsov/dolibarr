@@ -41,7 +41,7 @@ if (GETPOST('action', 'aZ09') == 'donothing') {
 	exit;
 }
 
-$execmethod = empty($conf->global->MAIN_EXEC_USE_POPEN) ? 1 : $conf->global->MAIN_EXEC_USE_POPEN;
+$execmethod = getDolGlobalInt('MAIN_EXEC_USE_POPEN', 1);
 
 
 /*
@@ -52,7 +52,13 @@ llxHeader();
 
 print load_fiche_titre($langs->trans("Security"), '', 'title_setup');
 
-print '<span class="opacitymedium">'.$langs->trans("YouMayFindSecurityAdviceHere", 'hhttps://wiki.dolibarr.org/index.php/Security_information').'</span> (<a href="'.$_SERVER["PHP_SELF"].'">'.$langs->trans("Reload").'</a>)<br>';
+print '<span class="opacitymedium">'.$langs->trans("YouMayFindSecurityAdviceHere", 'hhttps://wiki.dolibarr.org/index.php/Security_information').'</span>';
+print ' &nbsp; &nbsp; ';
+print '<a href="'.$_SERVER["PHP_SELF"].'">';
+print img_picto($langs->trans("Reload"), 'refresh').' ';
+print $langs->trans("Reload");
+print '</a>';
+print '<br>';
 print '<br>';
 
 print load_fiche_titre($langs->trans("PHPSetup"), '', 'folder');
@@ -312,6 +318,32 @@ print yn(empty($conf->global->MAIN_SECURITY_ENABLECAPTCHA) ? 0 : 1);
 print '<br>';
 print '<br>';
 
+
+$sessiontimeout = ini_get("session.gc_maxlifetime");
+if (empty($conf->global->MAIN_SESSION_TIMEOUT)) {
+	$conf->global->MAIN_SESSION_TIMEOUT = $sessiontimeout;
+}
+print '<strong>'.$langs->trans("SessionTimeOut").'</strong>';
+if (ini_get("session.gc_probability") == 0) {
+	print $form->textwithpicto('', $langs->trans("SessionsPurgedByExternalSystem", ini_get("session.gc_maxlifetime")));
+} else {
+	print $form->textwithpicto('', $langs->trans("SessionExplanation", ini_get("session.gc_probability"), ini_get("session.gc_divisor"), ini_get("session.gc_maxlifetime")));
+}
+print ': '.getDolGlobalInt('MAIN_SESSION_TIMEOUT').' '.strtolower($langs->trans("Seconds"));
+print '<br><br>';
+
+print '<strong>'.$langs->trans("MaxNumberOfImagesInGetPost").'</strong>: ';
+print getDolGlobalInt('MAIN_SECURITY_MAX_IMG_IN_HTML_CONTENT').' '.strtolower($langs->trans("Images"));
+print '<br><br>';
+
+print '<strong>'.$langs->trans("MaxNumberOfPostOnPublicPagesByIP").'</strong>: ';
+print getDolGlobalInt('MAIN_SECURITY_MAX_POST_ON_PUBLIC_PAGES_BY_IP_ADDRESS', 200).' '.strtolower($langs->trans("Posts"));
+print '<br><br>';
+
+print '<strong>'.$langs->trans("MaxNumberOfAttachementOnForms").'</strong>: ';
+print getDolGlobalInt("MAIN_SECURITY_MAX_ATTACHMENT_ON_FORMS", 10).' '.strtolower($langs->trans("Files"));
+print '<br><br>';
+
 print '<strong>'.$langs->trans("DoNotStoreClearPassword").'</strong>: ';
 print empty($conf->global->DATABASE_PWD_ENCRYPTED) ? '' : img_picto('', 'tick').' ';
 print yn(empty($conf->global->DATABASE_PWD_ENCRYPTED) ? 0 : 1);
@@ -521,12 +553,12 @@ if (empty($conf->global->MAIN_EXEC_USE_POPEN)) {
 	print $conf->global->MAIN_EXEC_USE_POPEN;
 }
 if ($execmethod == 1) {
-	print '<span class="opacitymedium">, "exec" PHP method will be used for shell commands';
+	print '<span class="opacitymedium"> &nbsp; &nbsp; "exec" PHP method will be used for shell commands';
 	print ' &nbsp; ('.$langs->trans("Recommended").': '.$langs->trans("Undefined").' '.$langs->trans("or").' 1)';
 	print '</span>';
 }
 if ($execmethod == 2) {
-	print '<span class="opacitymedium">, "popen" PHP method will be used for shell commands';
+	print '<span class="opacitymedium"> &nbsp; &nbsp; "popen" PHP method will be used for shell commands';
 	print ' &nbsp; ('.$langs->trans("Recommended").': '.$langs->trans("Undefined").' '.$langs->trans("or").' 1)';
 	print '</span>';
 }
@@ -542,13 +574,21 @@ print '<br>';
 print '<strong>MAIN_SECURITY_CSRF_TOKEN_RENEWAL_ON_EACH_CALL</strong> = '.(empty($conf->global->MAIN_SECURITY_CSRF_TOKEN_RENEWAL_ON_EACH_CALL) ? '<span class="opacitymedium">'.$langs->trans("Undefined").' &nbsp; ('.$langs->trans("Recommended").': '.$langs->trans("Undefined").' '.$langs->trans("or").' 0)</span>' : $conf->global->MAIN_SECURITY_CSRF_TOKEN_RENEWAL_ON_EACH_CALL)."<br>";
 print '<br>';
 
-print '<strong>MAIN_SECURITY_FORCECSP</strong> = '.(empty($conf->global->MAIN_SECURITY_FORCECSP) ? '<span class="opacitymedium">'.$langs->trans("Undefined").'</span>' : $conf->global->MAIN_SECURITY_FORCECSP).' &nbsp; <span class="opacitymedium">('.$langs->trans("Example").": \"frame-ancestors 'self'; default-src 'self'; img-src *;\")</span><br>";
+$examplecsprule = "frame-ancestors 'self'; img-src * data:; font-src *; default-src 'self' 'unsafe-inline' 'unsafe-eval' *.paypal.com *.stripe.com *.google.com *.googleapis.com *.google-analytics.com *.googletagmanager.com;";
+print '<strong>MAIN_SECURITY_FORCECSPRO</strong> = '.(empty($conf->global->MAIN_SECURITY_FORCECSPRO) ? '<span class="opacitymedium">'.$langs->trans("Undefined").'</span>' : $conf->global->MAIN_SECURITY_FORCECSPRO).' &nbsp; <span class="opacitymedium">('.$langs->trans("Example").': "'.$examplecsprule.'")</span><br>';
+print '<br>';
+
+$examplecsprule = "frame-ancestors 'self'; img-src * data:; font-src *; default-src 'self' 'unsafe-inline' 'unsafe-eval' *.paypal.com *.stripe.com *.google.com *.googleapis.com *.google-analytics.com *.googletagmanager.com;";
+print '<strong>MAIN_SECURITY_FORCECSP</strong> = '.(empty($conf->global->MAIN_SECURITY_FORCECSP) ? '<span class="opacitymedium">'.$langs->trans("Undefined").'</span>' : $conf->global->MAIN_SECURITY_FORCECSP).' &nbsp; <span class="opacitymedium">('.$langs->trans("Example").': "'.$examplecsprule.'")</span><br>';
 print '<br>';
 
 print '<strong>MAIN_SECURITY_FORCERP</strong> = '.(empty($conf->global->MAIN_SECURITY_FORCERP) ? '<span class="opacitymedium">'.$langs->trans("Undefined").'</span>' : $conf->global->MAIN_SECURITY_FORCERP).' &nbsp; <span class="opacitymedium">('.$langs->trans("Recommended").': '.$langs->trans("Undefined").' '.$langs->trans("or")." \"same-origin\" so browser doesn't send any referrer when going into another web site domain)</span><br>";
 print '<br>';
 
-print '<strong>WEBSITE_MAIN_SECURITY_FORCECSP</strong> = '.(empty($conf->global->WEBSITE_MAIN_SECURITY_FORCECSP) ? '<span class="opacitymedium">'.$langs->trans("Undefined").'</span>' : $conf->global->WEBSITE_MAIN_SECURITY_FORCECSP).' &nbsp; <span class="opacitymedium">('.$langs->trans("Example").": \"frame-ancestors 'self'; default-src 'self'; style-src https://cdnjs.cloudflare.com https://fonts.googleapis.com; script-src https://cdn.transifex.com https://www.googletagmanager.com; object-src https://youtube.com; frame-src https://youtube.com; img-src *;\")</span><br>";
+print '<strong>WEBSITE_MAIN_SECURITY_FORCECSPRO</strong> = '.(empty($conf->global->WEBSITE_MAIN_SECURITY_FORCECSPRO) ? '<span class="opacitymedium">'.$langs->trans("Undefined").'</span>' : $conf->global->WEBSITE_MAIN_SECURITY_FORCECSPRO).' &nbsp; <span class="opacitymedium">('.$langs->trans("Example").": \"frame-ancestors 'self'; default-src 'self' 'unsafe-inline'; style-src https://cdnjs.cloudflare.com *.googleapis.com; script-src *.transifex.com *.googletagmanager.com; object-src https://youtube.com; frame-src https://youtube.com; img-src * data:;\")</span><br>";
+print '<br>';
+
+print '<strong>WEBSITE_MAIN_SECURITY_FORCECSP</strong> = '.(empty($conf->global->WEBSITE_MAIN_SECURITY_FORCECSP) ? '<span class="opacitymedium">'.$langs->trans("Undefined").'</span>' : $conf->global->WEBSITE_MAIN_SECURITY_FORCECSP).' &nbsp; <span class="opacitymedium">('.$langs->trans("Example").": \"frame-ancestors 'self'; default-src 'self' 'unsafe-inline'; style-src https://cdnjs.cloudflare.com *.googleapis.com; script-src *.transifex.com *.googletagmanager.com; object-src https://youtube.com; frame-src https://youtube.com; img-src * data:;\")</span><br>";
 print '<br>';
 
 print '<strong>WEBSITE_MAIN_SECURITY_FORCERP</strong> = '.(empty($conf->global->WEBSITE_MAIN_SECURITY_FORCERP) ? '<span class="opacitymedium">'.$langs->trans("Undefined").'</span>' : $conf->global->WEBSITE_MAIN_SECURITY_FORCERP).' &nbsp; <span class="opacitymedium">('.$langs->trans("Recommended").': '.$langs->trans("Undefined").' '.$langs->trans("or")." \"strict-origin-when-cross-origin\")</span><br>";
@@ -572,7 +612,7 @@ print '</span>';
 print '<br>';
 $urlexamplebase = 'https://github.com/Dolibarr/dolibarr/blob/develop/dev/setup/fail2ban/filter.d/';
 print '- Login process (see <a target="_blank" rel="noopener" href="'.$urlexamplebase.'web-dolibarr-rulesbruteforce.conf">fail2ban example on GitHub</a>)<br>';
-print '- '.DOL_URL_ROOT.'/passwordforgotten.php (see <a target="_blank" rel="noopener" href="'.$urlexamplebase.'web-dolibarr-rulespassgorgotten.conf">fail2ban example on GitHub</a>)<br>';
+print '- '.DOL_URL_ROOT.'/passwordforgotten.php (see <a target="_blank" rel="noopener" href="'.$urlexamplebase.'web-dolibarr-rulespassforgotten.conf">fail2ban example on GitHub</a>)<br>';
 print '- '.DOL_URL_ROOT.'/public/* (see <a target="_blank" rel="noopener" href="'.$urlexamplebase.'web-dolibarr-limitpublic.conf">fail2ban example on GitHub</a>)<br>';
 print '<br>';
 $urlexamplebase = 'https://github.com/Dolibarr/dolibarr/blob/develop/dev/setup/apache/';

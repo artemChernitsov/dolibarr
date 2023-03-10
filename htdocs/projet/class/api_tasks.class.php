@@ -150,11 +150,10 @@ class Tasks extends DolibarrApi
 		// Add sql filters
 		if ($sqlfilters) {
 			$errormessage = '';
-			if (!DolibarrApi::_checkFilters($sqlfilters, $errormessage)) {
-				throw new RestException(503, 'Error when validating parameter sqlfilters -> '.$errormessage);
+			$sql .= forgeSQLFromUniversalSearchCriteria($sqlfilters, $errormessage);
+			if ($errormessage) {
+				throw new RestException(400, 'Error when validating parameter sqlfilters -> '.$errormessage);
 			}
-			$regexstring = '\(([^:\'\(\)]+:[^:\'\(\)]+:[^\(\)]+)\)';
-			$sql .= " AND (".preg_replace_callback('/'.$regexstring.'/', 'DolibarrApi::_forge_criteria_callback', $sqlfilters).")";
 		}
 
 		$sql .= $this->db->order($sortfield, $sortorder);
@@ -544,7 +543,7 @@ class Tasks extends DolibarrApi
 		$this->task->timespent_datehour = $newdate;
 		$this->task->timespent_withhour = 1;
 		$this->task->timespent_duration = $duration;
-		$this->task->timespent_fk_user  = $user_id;
+		$this->task->timespent_fk_user  = $uid;
 		$this->task->timespent_note     = $note;
 
 		$result = $this->task->addTimeSpent(DolibarrApiAccess::$user, 0);

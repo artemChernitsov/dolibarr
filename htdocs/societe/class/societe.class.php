@@ -51,6 +51,11 @@ class Societe extends CommonObject
 	use CommonIncoterm;
 
 	/**
+	 * @var string ID of module.
+	 */
+	public $module = 'societe';
+
+	/**
 	 * @var string ID to identify managed object
 	 */
 	public $element = 'societe';
@@ -235,7 +240,7 @@ class Societe extends CommonObject
 		'last_main_doc' =>array('type'=>'varchar(255)', 'label'=>'LastMainDoc', 'enabled'=>1, 'visible'=>-1, 'position'=>270),
 		'fk_multicurrency' =>array('type'=>'integer', 'label'=>'Fk multicurrency', 'enabled'=>1, 'visible'=>-1, 'position'=>440),
 		'multicurrency_code' =>array('type'=>'varchar(255)', 'label'=>'Multicurrency code', 'enabled'=>1, 'visible'=>-1, 'position'=>445),
-		'fk_account' =>array('type'=>'integer', 'label'=>'AccountingAccount', 'enabled'=>1, 'visible'=>-1, 'position'=>450),
+		'fk_account' =>array('type'=>'integer', 'label'=>'PaymentBankAccount', 'enabled'=>1, 'visible'=>-1, 'position'=>450),
 		'fk_warehouse' =>array('type'=>'integer', 'label'=>'Warehouse', 'enabled'=>1, 'visible'=>-1, 'position'=>455),
 		'logo' =>array('type'=>'varchar(255)', 'label'=>'Logo', 'enabled'=>1, 'visible'=>-1, 'position'=>400),
 		'logo_squarred' =>array('type'=>'varchar(255)', 'label'=>'Logo squarred', 'enabled'=>1, 'visible'=>-1, 'position'=>401),
@@ -784,11 +789,14 @@ class Societe extends CommonObject
 	 */
 	public $multicurrency_code;
 
+	/**
+	 * @var string  Set if company email found into unsubscribe of emailing list table
+	 */
+	public $no_email;
 
 	// Fields loaded by fetchPartnerships()
 
 	public $partnerships = array();
-
 
 
 	/**
@@ -796,35 +804,40 @@ class Societe extends CommonObject
 	 */
 	public $bank_account;
 
+
+	const STATUS_CEASED = 0;
+	const STATUS_INACTIVITY = 1;
+
 	/**
-	 * Third party is no customer
+	 * Third party type is no customer
 	 */
 	const NO_CUSTOMER = 0;
 
 	/**
-	 * Third party is a customer
+	 * Third party type is a customer
 	 */
 	const CUSTOMER = 1;
 
 	/**
-	 * Third party is a prospect
+	 * Third party type is a prospect
 	 */
 	const PROSPECT = 2;
 
 	/**
-	 * Third party is a customer and a prospect
+	 * Third party type is a customer and a prospect
 	 */
 	const CUSTOMER_AND_PROSPECT = 3;
 
 	/**
-	 * Third party is no supplier
+	 * Third party supplier flag is not supplier
 	 */
 	const NO_SUPPLIER = 0;
 
 	/**
-	 * Third party is a supplier
+	 * Third party supplier flag is a supplier
 	 */
 	const SUPPLIER = 1;
+
 
 	/**
 	 *    Constructor
@@ -4881,7 +4894,7 @@ class Societe extends CommonObject
 	 * Existing categories are left untouch.
 	 *
 	 * @param 	int[]|int 	$categories 	Category ID or array of Categories IDs
-	 * @param 	string 		$type_categ 			Category type ('customer' or 'supplier')
+	 * @param 	string 		$type_categ 	Category type ('customer' or 'supplier')
 	 * @return	int							<0 if KO, >0 if OK
 	 */
 	public function setCategories($categories, $type_categ)

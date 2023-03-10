@@ -104,6 +104,10 @@ class Loan extends CommonObject
 	 */
 	public $fk_project;
 
+	/**
+	 * @var int totalpaid
+	 */
+	public $totalpaid;
 
 	const STATUS_UNPAID = 0;
 	const STATUS_PAID = 1;
@@ -453,7 +457,7 @@ class Loan extends CommonObject
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
 	/**
-	 *  Tag loan as payement as unpaid
+	 *  Tag loan as payment as unpaid
 	 *	@deprecated
 	 *  @see setUnpaid()
 	 *  @param	User	$user	Object user making change
@@ -467,7 +471,7 @@ class Loan extends CommonObject
 	}
 
 	/**
-	 *  Tag loan as payement as unpaid
+	 *  Tag loan as payment as unpaid
 	 *
 	 *  @param	User	$user	Object user making change
 	 *  @return	int				<0 if KO, >0 if OK
