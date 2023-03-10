@@ -59,6 +59,7 @@ $search_status = (GETPOST("search_status", 'intcomma') != '') ? GETPOST("search_
 $search_all = trim((GETPOST('search_all', 'alphanohtml') != '') ?GETPOST('search_all', 'alphanohtml') : GETPOST('sall', 'alphanohtml'));
 $search_ref = GETPOST('search_ref', 'alpha');
 $search_company = GETPOST('search_company', 'alpha');
+$search_thirdparty = GETPOST('search_thirdparty', 'alpha');
 $search_name = GETPOST('search_name', 'alpha');
 $search_amount = GETPOST('search_amount', 'alpha');
 $optioncss = GETPOST('optioncss', 'alpha');
@@ -71,6 +72,7 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 	$search_all = "";
 	$search_ref = "";
 	$search_company = "";
+	$search_thirdparty  = "";
 	$search_name = "";
 	$search_amount = "";
 	$search_status = '';
@@ -87,6 +89,11 @@ $fieldstosearchall = array(
 	'd.lastname'=>'Lastname',
 	'd.firstname'=>'Firstname',
 );
+
+// Security check
+$result = restrictedArea($user, 'don');
+
+
 
 
 /*
@@ -234,7 +241,7 @@ if ($resql) {
 		Don::STATUS_PAID=>$langs->trans("DonationStatusPaid"),
 		Don::STATUS_CANCELED=>$langs->trans("Canceled")
 	);
-	print $form->selectarray('search_status', $liststatus, $search_status, -4, 0, 0, '', 0, 0, 0, '', 'maxwidth100');
+	print $form->selectarray('search_status', $liststatus, $search_status, -4, 0, 0, '', 0, 0, 0, '', 'maxwidth100 onrightofpage');
 	print '</td>';
 	print '<td class="liste_titre maxwidthsearch">';
 	$searchpicto = $form->showFilterAndCheckAddButtons(0);

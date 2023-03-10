@@ -72,6 +72,7 @@ class BonPrelevement extends CommonObject
 
 	public $date_trans;
 	public $user_trans;
+	public $method_trans;
 
 	public $total;
 	public $fetched;
@@ -82,6 +83,15 @@ class BonPrelevement extends CommonObject
 
 	public $invoice_in_error = array();
 	public $thirdparty_in_error = array();
+
+	public $amount;
+	public $note;
+	public $datec;
+
+	public $date_credit;
+	public $user_credit;
+
+	public $type;
 
 	const STATUS_DRAFT = 0;
 	const STATUS_TRANSFERED = 1;
@@ -1209,7 +1219,7 @@ class BonPrelevement extends CommonObject
 		$result = '';
 
 		$labeltoshow = 'PaymentByDirectDebit';
-		if ($this->type == 'bank-transfer') {
+		if (!empty($this->type) && $this->type == 'bank-transfer') {
 			$labeltoshow = 'PaymentByBankTransfer';
 		}
 
@@ -1221,7 +1231,7 @@ class BonPrelevement extends CommonObject
 		}
 
 		$url = DOL_URL_ROOT.'/compta/prelevement/card.php?id='.$this->id;
-		if ($this->type == 'bank-transfer') {
+		if (!empty($this->type) && $this->type == 'bank-transfer') {
 			$url = DOL_URL_ROOT.'/compta/prelevement/card.php?id='.$this->id;
 		}
 
@@ -1709,8 +1719,11 @@ class BonPrelevement extends CommonObject
 	public static function buildRumNumber($row_code_client, $row_datec, $row_drum)
 	{
 		global $langs;
+
 		$pre = substr(dol_string_nospecial(dol_string_unaccent($langs->transnoentitiesnoconv('RUM'))), 0, 3); // Must always be on 3 char ('RUM' or 'UMR'. This is a protection against bad translation)
-		return $pre.($row_code_client ? '-'.$row_code_client : '').'-'.$row_drum.'-'.date('U', $row_datec);
+
+		// 3 char + '-' + 12 + '-' + id + '-' + code 		Must be lower than 32.
+		return $pre.'-'.dol_print_date($row_datec, 'dayhourlogsmall').'-'.dol_trunc($row_drum.($row_code_client ? '-'.$row_code_client : ''), 13, 'right', 'UTF-8', 1);
 	}
 
 

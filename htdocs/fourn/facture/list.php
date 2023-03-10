@@ -404,6 +404,9 @@ $facturestatic = new FactureFournisseur($db);
 $formcompany = new FormCompany($db);
 $thirdparty = new Societe($db);
 
+$varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
+$selectedfields = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage); // This also change content of $arrayfields
+
 $sql = "SELECT";
 if ($search_all) {
 	$sql = 'SELECT DISTINCT';
@@ -435,6 +438,9 @@ if (!empty($extrafields->attributes[$object->table_element]['label'])) {
 $parameters = array();
 $reshook = $hookmanager->executeHooks('printFieldListSelect', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 $sql .= $hookmanager->resPrint;
+
+$sqlfields = $sql; // $sql fields to remove for count total
+
 $sql .= ' FROM '.MAIN_DB_PREFIX.'societe as s';
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_country as country on (country.rowid = s.fk_pays)";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_typent as typent on (typent.id = s.fk_typent)";
@@ -503,11 +509,15 @@ if ($search_type != '' && $search_type >= 0) {
 if ($search_project) {
 	$sql .= natural_search('p.ref', $search_project);
 }
-if ($search_company) {
-	$sql .= natural_search('s.nom', $search_company);
-}
-if ($search_company_alias) {
-	$sql .= natural_search('s.name_alias', $search_company_alias);
+if (empty($arrayfields['s.name_alias']['checked']) && $search_company) {
+	$sql .= natural_search(array("s.nom", "s.name_alias"), $search_company);
+} else {
+	if ($search_company) {
+		$sql .= natural_search('s.nom', $search_company);
+	}
+	if ($search_company_alias) {
+		$sql .= natural_search('s.name_alias', $search_company_alias);
+	}
 }
 if ($search_town) {
 	$sql .= natural_search('s.town', $search_town);
@@ -699,19 +709,32 @@ $parameters = array();
 $reshook = $hookmanager->executeHooks('printFieldListHaving', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 $sql .= empty($hookmanager->resPrint) ? "" : " HAVING 1=1 ".$hookmanager->resPrint;
 
-$sql .= $db->order($sortfield, $sortorder);
-
+// Count total nb of records
 $nbtotalofrecords = '';
 if (empty($conf->global->MAIN_DISABLE_FULL_SCANLIST)) {
-	$result = $db->query($sql);
-	$nbtotalofrecords = $db->num_rows($result);
+	/* The fast and low memory method to get and count full list converts the sql into a sql count */
+	$sqlforcount = preg_replace('/^'.preg_quote($sqlfields, '/').'/', 'SELECT COUNT(*) as nbtotalofrecords', $sql);
+	$sqlforcount = preg_replace('/GROUP BY .*$/', '', $sqlforcount);
+	$resql = $db->query($sqlforcount);
+	if ($resql) {
+		$objforcount = $db->fetch_object($resql);
+		$nbtotalofrecords = $objforcount->nbtotalofrecords;
+	} else {
+		dol_print_error($db);
+	}
+
 	if (($page * $limit) > $nbtotalofrecords) {	// if total resultset is smaller then paging size (filtering), goto and load page 0
 		$page = 0;
 		$offset = 0;
 	}
+	$db->free($resql);
 }
 
-$sql .= $db->plimit($limit + 1, $offset);
+// Complete request and execute it with limit
+$sql .= $db->order($sortfield, $sortorder);
+if ($limit) {
+	$sql .= $db->plimit($limit + 1, $offset);
+}
 //print $sql;
 
 $resql = $db->query($sql);
@@ -1005,17 +1028,17 @@ if (!empty($arrayfields['f.ref_supplier']['checked'])) {
 if (!empty($arrayfields['f.type']['checked'])) {
 	print '<td class="liste_titre maxwidthonsmartphone">';
 	$listtype = array(
-			FactureFournisseur::TYPE_STANDARD=>$langs->trans("InvoiceStandard"),
-			FactureFournisseur::TYPE_REPLACEMENT=>$langs->trans("InvoiceReplacement"),
-			FactureFournisseur::TYPE_CREDIT_NOTE=>$langs->trans("InvoiceAvoir"),
-			FactureFournisseur::TYPE_DEPOSIT=>$langs->trans("InvoiceDeposit"),
+		FactureFournisseur::TYPE_STANDARD=>$langs->trans("InvoiceStandard"),
+		FactureFournisseur::TYPE_REPLACEMENT=>$langs->trans("InvoiceReplacement"),
+		FactureFournisseur::TYPE_CREDIT_NOTE=>$langs->trans("InvoiceAvoir"),
+		FactureFournisseur::TYPE_DEPOSIT=>$langs->trans("InvoiceDeposit"),
 	);
 	/*
-	if (!empty($conf->global->INVOICE_USE_SITUATION))
-	{
-		$listtype[Facture::TYPE_SITUATION] = $langs->trans("InvoiceSituation");
-	}
-	*/
+	 if (!empty($conf->global->INVOICE_USE_SITUATION))
+	 {
+	 $listtype[Facture::TYPE_SITUATION] = $langs->trans("InvoiceSituation");
+	 }
+	 */
 	//$listtype[Facture::TYPE_PROFORMA]=$langs->trans("InvoiceProForma");     // A proformat invoice is not an invoice but must be an order.
 	print $form->selectarray('search_type', $listtype, $search_type, 1, 0, 0, '', 0, 0, 0, 'ASC', 'maxwidth100');
 	print '</td>';
@@ -1042,11 +1065,11 @@ if (!empty($arrayfields['f.date_lim_reglement']['checked'])) {
 	print '<td class="liste_titre center">';
 	print '<div class="nowrap">';
 	/*
-	print $langs->trans('From').' ';
-	print $form->selectDate($search_datelimit_start ? $search_datelimit_start : -1, 'search_datelimit_start', 0, 0, 1);
-	print '</div>';
-	print '<div class="nowrap">';
-	print $langs->trans('to').' ';*/
+	 print $langs->trans('From').' ';
+	 print $form->selectDate($search_datelimit_start ? $search_datelimit_start : -1, 'search_datelimit_start', 0, 0, 1);
+	 print '</div>';
+	 print '<div class="nowrap">';
+	 print $langs->trans('to').' ';*/
 	print $form->selectDate($search_datelimit_end ? $search_datelimit_end : -1, 'search_datelimit_end', 0, 0, 1, '', 1, 0, 0, '', '', '', '', 1, '', $langs->trans("Before"));
 	print '<br><input type="checkbox" name="search_option" value="late"'.($option == 'late' ? ' checked' : '').'> '.$langs->trans("Alert");
 	print '</div>';
@@ -1205,7 +1228,7 @@ if (!empty($arrayfields['f.tms']['checked'])) {
 if (!empty($arrayfields['f.fk_statut']['checked'])) {
 	print '<td class="liste_titre maxwidthonsmartphone right">';
 	$liststatus = array('0'=>$langs->trans("Draft"), '1'=>$langs->trans("Unpaid"), '2'=>$langs->trans("Paid"));
-	print $form->selectarray('search_status', $liststatus, $search_status, 1, 0, 0, '', 0, 0, 0, '', '', 1);
+	print $form->selectarray('search_status', $liststatus, $search_status, 1, 0, 0, '', 0, 0, 0, '', 'onrightofpage', 1);
 	print '</td>';
 }
 // Action column
@@ -1464,7 +1487,7 @@ if ($num > 0) {
 		// Label
 		if (!empty($arrayfields['f.label']['checked'])) {
 			print '<td class="nowrap">';
-			print $obj->label;
+			print dol_escape_htmltag($obj->label);
 			print '</td>';
 			if (!$i) {
 				$totalarray['nbfield']++;
@@ -1520,7 +1543,7 @@ if ($num > 0) {
 		// Alias
 		if (!empty($arrayfields['s.name_alias']['checked'])) {
 			print '<td class="tdoverflowmax150">';
-			print $thirdparty->name_alias;
+			print dol_escape_htmltag($thirdparty->name_alias);
 			print '</td>';
 			if (!$i) {
 				$totalarray['nbfield']++;
@@ -1528,8 +1551,8 @@ if ($num > 0) {
 		}
 		// Town
 		if (!empty($arrayfields['s.town']['checked'])) {
-			print '<td class="nocellnopadd">';
-			print $obj->town;
+			print '<td class="tdoverflowmax100" title="'.dol_escape_htmltag($obj->town).'">';
+			print dol_escape_htmltag($obj->town);
 			print '</td>';
 			if (!$i) {
 				$totalarray['nbfield']++;
@@ -1537,7 +1560,7 @@ if ($num > 0) {
 		}
 		// Zip
 		if (!empty($arrayfields['s.zip']['checked'])) {
-			print '<td class="nocellnopadd center tdoverflowmax100" title="'.dol_escape_htmltag($obj->zip).'">';
+			print '<td class="tdoverflowmax100" title="'.dol_escape_htmltag($obj->zip).'">';
 			print dol_escape_htmltag($obj->zip);
 			print '</td>';
 			if (!$i) {
@@ -1546,7 +1569,9 @@ if ($num > 0) {
 		}
 		// State
 		if (!empty($arrayfields['state.nom']['checked'])) {
-			print "<td>".$obj->state_name."</td>\n";
+			print '<td class="tdoverflowmax100" title="'.dol_escape_htmltag($obj->state_name).'">';
+			print dol_escape_htmltag($obj->state_name);
+			print "</td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
@@ -1597,14 +1622,14 @@ if ($num > 0) {
 
 		// Amount HT
 		if (!empty($arrayfields['f.total_ht']['checked'])) {
-			  print '<td class="right nowrap"><span class="amount">'.price($obj->total_ht)."</span></td>\n";
+			print '<td class="right nowrap"><span class="amount">'.price($obj->total_ht)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
 			if (!$i) {
 				$totalarray['pos'][$totalarray['nbfield']] = 'f.total_ht';
 			}
-			  $totalarray['val']['f.total_ht'] += $obj->total_ht;
+			$totalarray['val']['f.total_ht'] += $obj->total_ht;
 		}
 		// Amount VAT
 		if (!empty($arrayfields['f.total_vat']['checked'])) {
@@ -1703,7 +1728,7 @@ if ($num > 0) {
 
 		// Currency
 		if (!empty($arrayfields['f.multicurrency_code']['checked'])) {
-			  print '<td class="nowrap">'.$obj->multicurrency_code.' - '.$langs->trans('Currency'.$obj->multicurrency_code)."</td>\n";
+			print '<td class="nowrap">'.$obj->multicurrency_code.' - '.$langs->trans('Currency'.$obj->multicurrency_code)."</td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
@@ -1711,16 +1736,16 @@ if ($num > 0) {
 
 		// Currency rate
 		if (!empty($arrayfields['f.multicurrency_tx']['checked'])) {
-			  print '<td class="nowrap">';
-			  $form->form_multicurrency_rate($_SERVER['PHP_SELF'].'?id='.$obj->rowid, $obj->multicurrency_tx, 'none', $obj->multicurrency_code);
-			  print "</td>\n";
+			print '<td class="nowrap">';
+			$form->form_multicurrency_rate($_SERVER['PHP_SELF'].'?id='.$obj->rowid, $obj->multicurrency_tx, 'none', $obj->multicurrency_code);
+			print "</td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
 		}
 		// Amount HT
 		if (!empty($arrayfields['f.multicurrency_total_ht']['checked'])) {
-			  print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ht)."</span></td>\n";
+			print '<td class="right nowrap"><span class="amount">'.price($obj->multicurrency_total_ht)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}

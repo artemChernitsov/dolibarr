@@ -1840,10 +1840,12 @@ function showModulesExludedForExternal($modules)
 	global $conf, $langs;
 
 	$text = $langs->trans("OnlyFollowingModulesAreOpenedToExternalUsers");
-	$listofmodules = explode(',', $conf->global->MAIN_MODULES_FOR_EXTERNAL);
+	$listofmodules = explode(',', $conf->global->MAIN_MODULES_FOR_EXTERNAL);	// List of modules qualified for external user management
+
 	$i = 0;
 	if (!empty($modules)) {
-		foreach ($modules as $module) {
+		$tmpmodules = dol_sort_array($modules, 'module_position');
+		foreach ($tmpmodules as $module) {		// Loop on array of modules
 			$moduleconst = $module->const_name;
 			$modulename = strtolower($module->name);
 			//print 'modulename='.$modulename;
@@ -1860,9 +1862,16 @@ function showModulesExludedForExternal($modules)
 				$text .= ' ';
 			}
 			$i++;
-			$text .= $langs->trans('Module'.$module->numero.'Name');
+
+			$tmptext = $langs->trans('Module'.$module->numero.'Name');
+			if ($tmptext != 'Module'.$module->numero.'Name') {
+				$text .= $langs->trans('Module'.$module->numero.'Name');
+			} else {
+				$text .= $langs->trans($module->name);
+			}
 		}
 	}
+
 	return $text;
 }
 
@@ -2043,6 +2052,11 @@ function email_admin_prepare_head()
 	$head[$h][0] = DOL_URL_ROOT."/admin/mails_templates.php";
 	$head[$h][1] = $langs->trans("EMailTemplates");
 	$head[$h][2] = 'templates';
+	$h++;
+
+	$head[$h][0] = DOL_URL_ROOT."/admin/mails_ingoing.php";
+	$head[$h][1] = $langs->trans("InGoingEmailSetup", $langs->transnoentitiesnoconv("EMailing"));
+	$head[$h][2] = 'common_ingoing';
 	$h++;
 
 	complete_head_from_modules($conf, $langs, null, $head, $h, 'email_admin', 'remove');

@@ -76,7 +76,6 @@ $ref = GETPOST('ref', 'alpha');
 $action      = GETPOST('action', 'alpha');
 $confirm     = GETPOST('confirm', 'alpha');
 $contextpage = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'purchaseordercard'; // To manage different context of search
-
 $backtopage = GETPOST('backtopage', 'alpha');
 $backtopageforcancel = GETPOST('backtopageforcancel', 'alpha');
 
@@ -413,13 +412,13 @@ if (empty($reshook)) {
 
 	// Add a product line
 	if ($action == 'addline' && GETPOST('submitforalllines', 'aZ09') && GETPOST('vatforalllines', 'alpha') && $usercancreate) {
-		// Define vat_rate
+		// Define new vat_rate for all lines
 		$vat_rate = (GETPOST('vatforalllines') ? GETPOST('vatforalllines') : 0);
 		$vat_rate = str_replace('*', '', $vat_rate);
 		$localtax1_rate = get_localtax($vat_rate, 1, $object->thirdparty, $mysoc);
 		$localtax2_rate = get_localtax($vat_rate, 2, $object->thirdparty, $mysoc);
 		foreach ($object->lines as $line) {
-			$result = $object->updateline($line->id, $line->desc, $line->subprice, $line->qty, $line->remise_percent, $vat_rate, $localtax1_rate, $localtax2_rate, 'HT', $line->info_bits, $line->product_type, 0, $line->date_start, $line->date_end, $line->array_options, $line->fk_unit, $line->multicurrency_subprice);
+			$result = $object->updateline($line->id, $line->desc, $line->subprice, $line->qty, $line->remise_percent, $vat_rate, $localtax1_rate, $localtax2_rate, 'HT', $line->info_bits, $line->product_type, 0, $line->date_start, $line->date_end, $line->array_options, $line->fk_unit, $line->multicurrency_subprice, $line->ref_supplier);
 		}
 	} elseif ($action == 'addline' && $usercancreate) {
 		$db->begin();
@@ -1391,6 +1390,7 @@ if (empty($reshook)) {
 							$reshook = $hookmanager->executeHooks('createFrom', $parameters, $object, $action); // Note that $action and $object may have been
 
 							if ($reshook < 0) {
+								setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
 								$error++;
 							}
 						} else {
@@ -1698,16 +1698,16 @@ if ($action == 'create') {
 		print $societe->getNomUrl(1, 'supplier');
 		print '<input type="hidden" name="socid" value="'.$societe->id.'">';
 	} else {
-		print img_picto('', 'company').$form->select_company((empty($socid) ? '' : $socid), 'socid', 's.fournisseur=1', 'SelectThirdParty', 1, 0, null, 0, 'minwidth175 maxwidth500 widthcentpercentminusxx');
+		print img_picto('', 'company').$form->select_company((empty($socid) ? '' : $socid), 'socid', '(s.fournisseur=1 AND s.status=1)', 'SelectThirdParty', 1, 0, null, 0, 'minwidth175 maxwidth500 widthcentpercentminusxx');
 		// reload page to retrieve customer informations
-		if (!empty($conf->global->RELOAD_PAGE_ON_SUPPLIER_CHANGE)) {
+		if (empty($conf->global->RELOAD_PAGE_ON_SUPPLIER_CHANGE_DISABLED)) {
 			print '<script>
 			$(document).ready(function() {
 				$("#socid").change(function() {
-					var socid = $(this).val();
-					var prjid = $("#projectid").val();
+					console.log("We have changed the company - Reload page");
 					// reload page
-					window.location.href = "'.$_SERVER["PHP_SELF"].'?action=create&socid="+socid+"&projectid="+prjid
+					$("input[name=action]").val("create");
+					$("form[name=add]").submit();
 				});
 			});
 			</script>';
@@ -2061,7 +2061,7 @@ if ($action == 'create') {
 			if ($action != 'classify' && $caneditproject) {
 				$morehtmlref .= '<a class="editfielda" href="'.$_SERVER['PHP_SELF'].'?action=classify&token='.newToken().'&id='.$object->id.'">'.img_edit($langs->transnoentitiesnoconv('SetProject')).'</a> ';
 			}
-			$morehtmlref .= $form->form_project($_SERVER['PHP_SELF'].'?id='.$object->id, (empty($conf->global->PROJECT_CAN_ALWAYS_LINK_TO_ALL_SUPPLIERS) ? $object->socid : -1), $object->fk_project, ($action == 'classify' ? 'projectid' : 'none'), 0, ($action == 'classify' ? 1 : 0), 0, 1, '');
+			$morehtmlref .= $form->form_project($_SERVER['PHP_SELF'].'?id='.$object->id, (empty($conf->global->PROJECT_CAN_ALWAYS_LINK_TO_ALL_SUPPLIERS) ? $object->socid : -1), $object->fk_project, ($action == 'classify' ? 'projectid' : 'none'), 0, 0, 0, 1, '', 'maxwidth300');
 		} else {
 			if (!empty($object->fk_project)) {
 				$proj = new Project($db);
@@ -2093,7 +2093,7 @@ if ($action == 'create') {
 		}
 		print '<tr><td class="titlefield">'.$langs->trans("Date").'</td><td>';
 		print $object->date_commande ? dol_print_date($object->date_commande, $usehourmin ? 'dayhour' : 'day') : '';
-		if ($object->hasDelay() && !empty($object->date_delivery) && !empty($object->date_commande)) {
+		if ($object->hasDelay() && !empty($object->delivery_date) && !empty($object->date_commande)) {
 			print ' '.img_picto($langs->trans("Late").' : '.$object->showDelay(), "warning");
 		}
 		print "</td></tr>";
@@ -2263,7 +2263,7 @@ if ($action == 'create') {
 			$usehourmin = 1;
 		}
 		print $form->selectDate($object->delivery_date ? $object->delivery_date : -1, 'liv_', $usehourmin, $usehourmin, '', "setdate_livraison");
-		print '<input type="submit" class="button button-edit" value="'.$langs->trans('Modify').'">';
+		print '<input type="submit" class="button button-edit smallpaddingimp valign middle" value="'.$langs->trans('Modify').'">';
 		print '</form>';
 	} else {
 		$usehourmin = 'day';
@@ -2271,7 +2271,7 @@ if ($action == 'create') {
 			$usehourmin = 'dayhour';
 		}
 		print $object->delivery_date ? dol_print_date($object->delivery_date, $usehourmin) : '&nbsp;';
-		if ($object->hasDelay() && !empty($object->delivery_date)) {
+		if ($object->hasDelay() && !empty($object->delivery_date) && ($object->statut == $object::STATUS_ORDERSENT || $object->statut == $object::STATUS_RECEIVED_PARTIALLY)) {
 			print ' '.img_picto($langs->trans("Late").' : '.$object->showDelay(), "warning");
 		}
 	}
@@ -2415,7 +2415,7 @@ if ($action == 'create') {
 
 	// Show object lines
 	if (!empty($object->lines)) {
-		$ret = $object->printObjectLines($action, $societe, $mysoc, $lineid, 1);
+		$object->printObjectLines($action, $societe, $mysoc, $lineid, 1);
 	}
 
 	$num = count($object->lines);

@@ -43,10 +43,6 @@ $rowid = GETPOST('rowid', 'alpha');
 
 $id = 1;
 
-if (!$user->admin) {
-	accessforbidden();
-}
-
 $acts[0] = "activate";
 $acts[1] = "disable";
 $actl[0] = img_picto($langs->trans("Disabled"), 'switch_off', 'class="size15x"');
@@ -124,6 +120,10 @@ $tabfieldcheck[1] = array();
 // Define elementList and sourceList (used for dictionary type of contacts "llx_c_type_contact")
 $elementList = array();
 $sourceList = array();
+
+if (!$user->admin) {
+	accessforbidden();
+}
 
 
 /*
@@ -581,8 +581,8 @@ if ($id) {
 						fieldListWebsites($fieldlist, $obj, $tabname[$id], 'edit');
 					}
 
-					print '<td colspan="3" class="right"><a name="'.(!empty($obj->rowid) ? $obj->rowid : $obj->code).'">&nbsp;</a><input type="submit" class="button button-edit" name="actionmodify" value="'.$langs->trans("Modify").'">';
-					print '&nbsp;<input type="submit" class="button button-cancel" name="actioncancel" value="'.$langs->trans("Cancel").'"></td>';
+					print '<td colspan="4" class="right"><a name="'.(!empty($obj->rowid) ? $obj->rowid : $obj->code).'">&nbsp;</a><input type="submit" class="button button-edit small" name="actionmodify" value="'.$langs->trans("Modify").'">';
+					print '&nbsp;<input type="submit" class="button button-cancel small" name="actioncancel" value="'.$langs->trans("Cancel").'"></td>';
 				} else {
 					$tmpaction = 'view';
 					$parameters = array('fieldlist'=>$fieldlist, 'tabname'=>$tabname[$id]);
@@ -614,7 +614,7 @@ if ($id) {
 
 					// Active
 					print '<td align="center" class="nowrap">';
-					print '<a class="reposition" href="'.$url.'action='.$acts[($obj->status ? 1 : 0)].'">'.$actl[($obj->status ? 1 : 0)].'</a>';
+					print '<a class="reposition" href="'.$url.'action='.$acts[($obj->status ? 1 : 0)].'&token='.newToken().'">'.$actl[($obj->status ? 1 : 0)].'</a>';
 					print "</td>";
 
 					// Modify link

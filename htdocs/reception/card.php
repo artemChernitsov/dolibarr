@@ -1242,10 +1242,15 @@ if ($action == 'create') {
 				// Display lines for extrafields of the Reception line
 				// $line is a 'CommandeFournisseurLigne', $dispatchLines contains values of Reception lines so properties of CommandeFournisseurDispatch
 				if (!empty($extrafields)) {
-					//var_dump($line);
 					$colspan = 5;
 					if (isModEnabled('productbatch')) {
-						$colspan += 3;
+						$colspan += 2;
+						if (empty($conf->global->PRODUCT_DISABLE_SELLBY)) {
+							$colspan += 1;
+						}
+						if (empty($conf->global->PRODUCT_DISABLE_EATBY)) {
+							$colspan += 1;
+						}
 					}
 					$recLine = new CommandeFournisseurDispatch($db);
 
@@ -1286,7 +1291,7 @@ if ($action == 'create') {
 	$lines = $object->lines;
 
 	$num_prod = count($lines);
-
+	$indiceAsked = 0;
 	if ($object->id > 0) {
 		if (!empty($object->origin) && $object->origin_id > 0) {
 			$object->origin = 'CommandeFournisseur';
@@ -1389,7 +1394,7 @@ if ($action == 'create') {
 				if ($action != 'classify' && $permissiontoadd) {
 					$morehtmlref .= '<a class="editfielda" href="'.$_SERVER['PHP_SELF'].'?action=classify&token='.newToken().'&id='.$object->id.'">'.img_edit($langs->transnoentitiesnoconv('SetProject')).'</a> ';
 				}
-				$morehtmlref .= $form->form_project($_SERVER['PHP_SELF'].'?id='.$object->id, (empty($conf->global->PROJECT_CAN_ALWAYS_LINK_TO_ALL_SUPPLIERS) ? $object->socid : -1), $object->fk_project, ($action == 'classify' ? 'projectid' : 'none'), 0, ($action == 'classify' ? 1 : 0), 0, 1, '');
+				$morehtmlref .= $form->form_project($_SERVER['PHP_SELF'].'?id='.$object->id, (empty($conf->global->PROJECT_CAN_ALWAYS_LINK_TO_ALL_SUPPLIERS) ? $object->socid : -1), $object->fk_project, ($action == 'classify' ? 'projectid' : 'none'), 0, 0, 0, 1, '', 'maxwidth300');
 			} else {
 				if (!empty($objectsrc) && !empty($objectsrc->fk_project)) {
 					$proj = new Project($db);

@@ -171,6 +171,8 @@ class Facture extends CommonInvoice
 	public $total_ttc;
 	public $revenuestamp;
 
+	public $resteapayer;
+
 	/**
 	 * ! Closing after partial payment: discount_vat, badcustomer or badsupplier, bankcharge, other
 	 * ! Closing when no payment: replaced, abandoned
@@ -334,7 +336,7 @@ class Facture extends CommonInvoice
 		'fk_user_valid' =>array('type'=>'integer:User:user/class/user.class.php', 'label'=>'UserValidation', 'enabled'=>1, 'visible'=>-1, 'position'=>167),
 		'fk_user_closing' =>array('type'=>'integer:User:user/class/user.class.php', 'label'=>'UserClosing', 'enabled'=>1, 'visible'=>-1, 'position'=>168),
 		'fk_facture_source' =>array('type'=>'integer', 'label'=>'SourceInvoice', 'enabled'=>1, 'visible'=>-1, 'position'=>170),
-		'fk_projet' =>array('type'=>'integer:Project:projet/class/project.class.php:1:fk_statut=1', 'label'=>'Project', 'enabled'=>1, 'visible'=>-1, 'position'=>175),
+		'fk_projet' =>array('type'=>'integer:Project:projet/class/project.class.php:1:(fk_statut:=:1)', 'label'=>'Project', 'enabled'=>1, 'visible'=>-1, 'position'=>175),
 		'fk_account' =>array('type'=>'integer', 'label'=>'Fk account', 'enabled'=>1, 'visible'=>-1, 'position'=>180),
 		'fk_currency' =>array('type'=>'varchar(3)', 'label'=>'CurrencyCode', 'enabled'=>1, 'visible'=>-1, 'position'=>185),
 		'fk_cond_reglement' =>array('type'=>'integer', 'label'=>'PaymentTerm', 'enabled'=>1, 'visible'=>-1, 'notnull'=>1, 'position'=>190),
@@ -1259,7 +1261,7 @@ class Facture extends CommonInvoice
 		$object->ref_client         = '';
 		$object->close_code         = '';
 		$object->close_note         = '';
-		if ($conf->global->MAIN_DONT_KEEP_NOTE_ON_CLONING == 1) {
+		if (getDolGlobalInt('MAIN_DONT_KEEP_NOTE_ON_CLONING') == 1) {
 			$object->note_private = '';
 			$object->note_public = '';
 		}
@@ -1328,6 +1330,8 @@ class Facture extends CommonInvoice
 				$action = '';
 				$reshook = $hookmanager->executeHooks('createFrom', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
 				if ($reshook < 0) {
+					$this->errors += $hookmanager->errors;
+					$this->error = $hookmanager->error;
 					$error++;
 				}
 			}
@@ -1461,6 +1465,8 @@ class Facture extends CommonInvoice
 			$action = '';
 			$reshook = $hookmanager->executeHooks('createFrom', $parameters, $this, $action); // Note that $action and $object may have been modified by some hooks
 			if ($reshook < 0) {
+				$this->errors += $hookmanager->errors;
+				$this->error = $hookmanager->error;
 				$error++;
 			}
 
@@ -1954,14 +1960,14 @@ class Facture extends CommonInvoice
 		$sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'c_incoterms as i ON f.fk_incoterms = i.rowid';
 
 		if ($rowid) {
-			$sql .= " WHERE f.rowid=".((int) $rowid);
+			$sql .= " WHERE f.rowid = ".((int) $rowid);
 		} else {
 			$sql .= ' WHERE f.entity IN ('.getEntity('invoice').')'; // Don't use entity if you use rowid
 			if ($ref) {
-				$sql .= " AND f.ref='".$this->db->escape($ref)."'";
+				$sql .= " AND f.ref = '".$this->db->escape($ref)."'";
 			}
 			if ($ref_ext) {
-				$sql .= " AND f.ref_ext='".$this->db->escape($ref_ext)."'";
+				$sql .= " AND f.ref_ext = '".$this->db->escape($ref_ext)."'";
 			}
 		}
 
@@ -5706,6 +5712,7 @@ class Facture extends CommonInvoice
 		$sql .= " FROM ".MAIN_DB_PREFIX."facture";
 		$sql .= " WHERE type = " . (int) $this->type ;
 		$sql .= " AND date_valid IS NOT NULL";
+		$sql .= " AND entity IN (".getEntity('invoice').")";
 		$sql .= " ORDER BY datef DESC LIMIT 1";
 
 		$result = $this->db->query($sql);
@@ -6262,7 +6269,7 @@ class FactureLigne extends CommonInvoiceLine
 			$sql .= ", total_localtax2=".price2num($this->total_localtax2);
 		}
 		$sql .= ", fk_product_fournisseur_price=".(!empty($this->fk_fournprice) ? "'".$this->db->escape($this->fk_fournprice)."'" : "null");
-		$sql .= ", buy_price_ht=".(($this->pa_ht || $this->pa_ht === 0 || $this->pa_ht === '0') ? price2num($this->pa_ht) : "null"); // $this->pa_ht should always be defined (set to 0 or to sell price depending on option)
+		$sql .= ", buy_price_ht=".(($this->pa_ht || (string) $this->pa_ht === '0') ? price2num($this->pa_ht) : "null"); // $this->pa_ht should always be defined (set to 0 or to sell price depending on option)
 		$sql .= ", fk_parent_line=".($this->fk_parent_line > 0 ? $this->fk_parent_line : "null");
 		if (!empty($this->rang)) {
 			$sql .= ", rang=".((int) $this->rang);
@@ -6398,14 +6405,15 @@ class FactureLigne extends CommonInvoiceLine
 	 * Returns situation_percent of the previous line.
 	 * Warning: If invoice is a replacement invoice, this->fk_prev_id is id of the replaced line.
 	 *
-	 * @param  int     $invoiceid      Invoice id
+	 * @param  int     $invoiceid      			Invoice id
 	 * @param  bool    $include_credit_note		Include credit note or not
-	 * @return int                     >= 0
+	 * @return int                     			>= 0
 	 */
 	public function get_prev_progress($invoiceid, $include_credit_note = true)
 	{
 		// phpcs:enable
 		global $invoicecache;
+
 		if (is_null($this->fk_prev_id) || empty($this->fk_prev_id) || $this->fk_prev_id == "") {
 			return 0;
 		} else {

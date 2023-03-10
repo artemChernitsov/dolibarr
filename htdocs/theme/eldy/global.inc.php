@@ -1,6 +1,9 @@
-<?php if (!defined('ISLOADEDBYSTEELSHEET')) {
+<?php
+if (!defined('ISLOADEDBYSTEELSHEET')) {
 	die('Must be call by steelsheet');
-} ?>
+}
+
+?>
 /* <style type="text/css" > */
 
 /* ============================================================================== */
@@ -34,6 +37,8 @@
 	--colortopbordertitle1: rgb(<?php print $colortopbordertitle1; ?>);
 	--listetotal: #888888;
 	--inputbackgroundcolor: #FFF;
+	--inputbackgroundcolordisabled: #eee;
+	--inputcolordisabled: rgb(80, 80, 80);
 	--inputbordercolor: rgba(0,0,0,.15);
 	--tooltipbgcolor: <?php print $toolTipBgColor; ?>;
 	--tooltipfontcolor : <?php print $toolTipFontColor; ?>;
@@ -51,13 +56,18 @@
 	--productlinestockod: #002200;
 	--productlinestocktoolow: #884400;
 	--infoboxmoduleenabledbgcolor : linear-gradient(0.4turn, #fff, #fff, #fff, #e4efe8);
+	--tablevalidbgcolor: rgb(252, 248, 227);
+	--colorblack: #000;
+	--colorwhite: #fff;
 }
 
 <?php
 if (!empty($conf->global->THEME_DARKMODEENABLED)) {
 	print "/* For dark mode */\n";
 	if ($conf->global->THEME_DARKMODEENABLED != 2) {
-		print "@media (prefers-color-scheme: dark) {";
+		print "@media (prefers-color-scheme: dark) {";	// To test, click on the 3 dots menu, then Other options then Display then emulate prefer-color-schemes
+	} else {
+		print "@media not print {";
 	}
 	print ":root {
 	            --colorbackhmenu1: #3d3e40;
@@ -85,7 +95,9 @@ if (!empty($conf->global->THEME_DARKMODEENABLED)) {
 	            --colortextbackvmenu: rgb(220,220,220);
 				--tooltipfontcolor : rgb(220,220,220);
 	            --listetotal: rgb(245, 83, 158);
-	            --inputbackgroundcolor: #2b2d2f;
+	            --inputbackgroundcolor: rgb(70, 70, 70);
+				--inputbackgroundcolordisabled: rgb(60, 60, 60);
+				--inputcolordisabled: rgb(140, 140, 140);
 	            --inputbordercolor: rgb(220,220,220);
 	            --oddevencolor: rgb(220,220,220);
 	            --colorboxstatsborder: rgb(65,100,138);
@@ -99,14 +111,15 @@ if (!empty($conf->global->THEME_DARKMODEENABLED)) {
 	            --amountpaymentcomplete:rgb(101,184,77);
 	            --amountremaintopaybackcolor:rbg(245,130,46);
 				--infoboxmoduleenabledbgcolor : linear-gradient(0.4turn, #000, #000, #000, #274231);
+				--tablevalidbgcolor: rgb(80, 64, 33);
+				--colorblack: #fff;
+				--colorwhite: #000;
 	      }
 
 		body, button {
 			color: #bbb;
-		}\n";
-	if ($conf->global->THEME_DARKMODEENABLED != 2) {
-		print "}\n";
-	}
+		}\n
+	}\n";
 }
 ?>
 
@@ -143,6 +156,7 @@ th.liste_titre a div div:hover, th.liste_titre_sel a div div:hover { text-decora
 tr.liste_titre th.liste_titre_sel:not(.maxwidthsearch), tr.liste_titre td.liste_titre_sel:not(.maxwidthsearch),
 tr.liste_titre th.liste_titre:not(.maxwidthsearch), tr.liste_titre td.liste_titre:not(.maxwidthsearch) { opacity: 0.8; }
 /* th.liste_titre_sel a, th.liste_titre a, td.liste_titre_sel a, td.liste_titre a { color: #766; } */
+tr.liste_titre_filter th.liste_titre { text-align: unset; }
 
 input {
 	font-size: unset;
@@ -158,6 +172,11 @@ table.liste th.wrapcolumntitle.liste_titre_sel:not(.maxwidthsearch), table.liste
 	max-width: 100px;
 	text-overflow: ellipsis;
 }
+th.wrapcolumntitle dl dt a span.fas.fa-list {
+	padding-bottom: 1px;
+	vertical-align: bottom;
+}
+
 /*.liste_titre input[name=month_date_when], .liste_titre input[name=monthvalid], .liste_titre input[name=search_ordermonth], .liste_titre input[name=search_deliverymonth],
 .liste_titre input[name=search_smonth], .liste_titre input[name=search_month], .liste_titre input[name=search_emonth], .liste_titre input[name=smonth], .liste_titre input[name=month], .liste_titre select[name=month],
 .liste_titre select[name=year],
@@ -279,15 +298,14 @@ section.setupsection {
 	border-radius: 5px;
 }
 
-.field-error-icon { color: #ea1212; !important; }
+.field-error-icon { color: #ea1212 !important; }
 
 /* Focus definitions must be after standard definition */
 div.tabBar textarea:focus {
 	border: 1px solid #aaa !important;
 }
-input:focus:not(.button):not(.buttonwebsite):not(.select2-search__field):not(#top-bookmark-search-input):not(.search_component_input):not(.input-search-takepos),
+input:focus:not(.button):not(.buttonwebsite):not(.buttonreset):not(.select2-search__field):not(#top-bookmark-search-input):not(.search_component_input):not(.input-search-takepos),
  select:focus, .select2-container--open [aria-expanded="false"].select2-selection--single {
-/* div.tabBar input:focus, div.tabBar select:focus { */
 	border-bottom: 1px solid #666 !important;
 	border-bottom-left-radius: 0 !important;
 	border-bottom-right-radius: 0 !important;
@@ -486,13 +504,13 @@ input.pageplusone {
 	opacity: 0;
 }
 .colorwhite {
-	color: #fff;
+	color: var(--colorwhite);
 }
 .colorgrey {
 	color: #888 !important;
 }
 .colorblack {
-	color: #000;
+	color: var(--colorblack);
 }
 .fontsizeunset {
 	font-size: unset !important;
@@ -509,7 +527,8 @@ select:invalid, select.--error {
 }
 input:disabled, textarea:disabled, select[disabled='disabled']
 {
-	background:#eee;
+	background: var(--inputbackgroundcolordisabled);
+	color: var(--inputcolordisabled);
 }
 
 input.liste_titre {
@@ -1323,6 +1342,12 @@ select.flat.selectlimit {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+.tdoverflowmax80imp {			/* For tdoverflow, the max-midth become a minimum ! */
+	max-width: 80px !important;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
 .tdoverflowmax100 {			/* For tdoverflow, the max-midth become a minimum ! */
 	max-width: 100px;
 	overflow: hidden;
@@ -1536,17 +1561,20 @@ table[summary="list_of_modules"] .fa-cog {
 .linkedcol-element {
 	min-width: 100px;
 }
+.linkedcol-amount {
+	white-space: nowrap;
+}
 
 .img-skinthumb {
 	width: 160px;
 	height: 100px;
 }
 
-.maxscreenheightless200 {
-	max-height: <?php echo isset($_SESSION['dol_screenheight']) ? max(500, $_SESSION['dol_screenheight'] - 200) : 700; ?>px;	/* we guarantee height of 500 */
+maxscreenheightless200 {
+	max-height: <?php echo isset($_SESSION['dol_screenheight']) ? max(500, (int) $_SESSION['dol_screenheight'] - 200) : 700; ?>px;	/* we guarantee height of 500 */
 }
 .maxscreenheightless300 {
-	max-height: <?php echo isset($_SESSION['dol_screenheight']) ? max(400, $_SESSION['dol_screenheight'] - 300) : 700; ?>px;	/* we guarantee height of 500 */
+	max-height: <?php echo isset($_SESSION['dol_screenheight']) ? max(400, (int) $_SESSION['dol_screenheight'] - 300) : 700; ?>px;	/* we guarantee height of 500 */
 }
 
 
@@ -2428,6 +2456,9 @@ img.photoref, div.photoref {
 }
 img.photokanban, div.photokanban {
 	padding: 0;
+	border: none;
+	box-shadow: none;
+	vertical-align: middle;
 }
 div.photoref .fa, div.photoref .fas, div.photoref .far {
 	font-size: 2.5em;
@@ -3150,7 +3181,7 @@ a.vmenu:link, a.vmenu:visited {
 a.vsmenu:link, a.vsmenu:visited, a.vsmenu:hover, a.vsmenu:active, span.vsmenu {
 	font-family: <?php print $fontlist ?>;
 	text-align: <?php print $left; ?>;
-	color: #202020;
+	color: var(--colortextbackvmenu);
 	margin: 1px 1px 1px 6px;
 }
 span.vsmenudisabled, font.vsmenudisabled {
@@ -3222,7 +3253,6 @@ div.blockvmenubookmarks
 div.blockvmenupair, div.blockvmenuimpair, div.blockvmenubookmarks, div.blockvmenuend
 {
 	font-family: <?php print $fontlist ?>;
-	color: #000000;
 	text-align: <?php print $left; ?>;
 	text-decoration: none;
 	padding-left: 5px;
@@ -3231,6 +3261,7 @@ div.blockvmenupair, div.blockvmenuimpair, div.blockvmenubookmarks, div.blockvmen
 	padding-bottom: 7px;
 	margin: 0 0 0 2px;
 
+	color: var(--colortext);
 	background: var(--colorbackvmenu1);
 
 	border-left: 1px solid #AAA;
@@ -3752,7 +3783,7 @@ td.border, div.tagtable div div.border {
 }
 
 
-.fichehalfright table.noborder {
+.fichehalfright table.noborder , .fichehalfleft table.noborder{
 	margin: 0px 0px 0px 0px;
 }
 table.liste, table.noborder:not(.paymenttable):not(.margintable):not(.tableforcontact), table.formdoc, div.noborder:not(.paymenttable):not(.margintable):not(.tableforcontact) {
@@ -3781,12 +3812,12 @@ table.liste, table.noborder, table.formdoc, div.noborder {
 	box-shadow: 1px 1px 5px #ddd;
 	*/
 }
-#tablelines {
+#tablelines, #tablelinesservice {
 	border-bottom-width: 1px;
 	border-bottom-color: var(--colortopbordertitle1);
 	border-bottom-style: solid;
 }
-table.liste tr:last-of-type td, table.noborder:not(#tablelines) tr:last-of-type td, table.formdoc tr:last-of-type td, div.noborder tr:last-of-type td {
+table.liste tr:last-of-type td, table.noborder:not(#tablelines):not(#tablelinesservice) tr:last-of-type td, table.formdoc tr:last-of-type td, div.noborder tr:last-of-type td {
 	border-bottom-width: 1px;
 	border-bottom-color: var(--colortopbordertitle1);
 	border-bottom-style: solid;
@@ -3925,6 +3956,10 @@ div.refidno  {
 	font-size: <?php print is_numeric($fontsize) ? $fontsize.'px' : $fontsize ?>;
 	line-height: 1.4em;
 }
+div.refaddress div.address {
+	line-height: 1.2em;
+	font-size: 0.95em;
+}
 div.refidno form {
 	display: inline-block;
 }
@@ -3962,9 +3997,7 @@ div.pagination li.pagination span {
   line-height: 1.42857143;
   text-decoration: none;
   background-repeat: repeat-x;
-  <?php if (empty($conf->global->THEME_DARKMODEENABLED)) { ?>
-  color: #000;
-  <?php } ?>
+  color: var(--color-black);
 }
 div.pagination li.pagination span.inactive {
   cursor: default;
@@ -4103,7 +4136,7 @@ table.hidepaginationnext .paginationnext {
 {
 	font-family: <?php print $fontlist ?>;
 	margin-bottom: 1px;
-	color: var(--oddeven);
+	color: var(--oddevencolor);
 }
 .impair, .nohover .impair:hover, tr.impair td.nohover
 {
@@ -4167,7 +4200,7 @@ tr.pair td .nobordernopadding tr td, tr.impair td .nobordernopadding tr td {
 	border-bottom: 0px !important;
 }
 table.nobottomiftotal tr.liste_total td {
-	background-color: #fff;
+	background-color: var(--inputbackgroundcolor);
 	<?php if (!$userborderontable) { ?>
 	border-bottom: 0px !important;
 	<?php } ?>
@@ -4341,10 +4374,10 @@ div.tabBar .noborder {
 	box-shadow: 0px 0px 0px #DDD !important;
 }
 
-#tablelines tr.liste_titre td, .paymenttable tr.liste_titre td, .margintable tr.liste_titre td, .tableforservicepart1 tr.liste_titre td {
+#tablelines tr.liste_titre td, #tablelinesservice tr.liste_titre td, .paymenttable tr.liste_titre td, .margintable tr.liste_titre td, .tableforservicepart1 tr.liste_titre td {
 	border-bottom: 1px solid var(--colortopbordertitle1) !important;
 }
-#tablelines tr td {
+#tablelines tr td, #tablelinesservice tr td {
 	height: unset;
 }
 
@@ -4494,13 +4527,13 @@ ul.noborder li:nth-child(even):not(.liste_titre) {
 	.thumbstat {
 		flex: 1 1 110px;
 		margin-bottom: 8px;
-		min-width: <?php echo isset($_SESSION['dol_screenwidth']) ?min(160, round($_SESSION['dol_screenwidth'] / 2 - 20)) : 150; ?>px;	/* on screen < 320, we guaranty to have 2 columns */
+		min-width: <?php echo isset($_SESSION['dol_screenwidth']) ?min(160, round((int) $_SESSION['dol_screenwidth'] / 2 - 20)) : 150; ?>px;	/* on screen < 320, we guaranty to have 2 columns */
 	}
 	.thumbstat150 {
 		flex: 1 1 110px;
 		margin-bottom: 8px;
-		min-width: <?php echo isset($_SESSION['dol_screenwidth']) ?min(160, round($_SESSION['dol_screenwidth'] / 2 - 20)) : 160; ?>px;	/* on screen < 320, we guaranty to have 2 columns */
-		max-width: <?php echo isset($_SESSION['dol_screenwidth']) ?min(161, round($_SESSION['dol_screenwidth'] / 2 - 20)) : 161; ?>px;	/* on screen < 320, we guaranty to have 2 columns */
+		min-width: <?php echo isset($_SESSION['dol_screenwidth']) ?min(160, round((int) $_SESSION['dol_screenwidth'] / 2 - 20)) : 160; ?>px;	/* on screen < 320, we guaranty to have 2 columns */
+		max-width: <?php echo isset($_SESSION['dol_screenwidth']) ?min(161, round((int) $_SESSION['dol_screenwidth'] / 2 - 20)) : 161; ?>px;	/* on screen < 320, we guaranty to have 2 columns */
 		/* width: ...px; If I use with, there is trouble on size of flex boxes solved with min + (max that is a little bit higer than min) */
 	}
 	.dashboardlineindicator {
@@ -4595,6 +4628,9 @@ table.noborder.boxtable tr td {
 }
 .boxtablenobottom {
 	border-bottom-width: 0 !important;
+}
+.boxtablenomarginbottom {
+	margin-bottom: 0 !important;
 }
 .boxtable .fichehalfright, .boxtable .fichehalfleft {
 	min-width: 275px;	/* increasing this, make chart on box not side by side on laptops */
@@ -4847,7 +4883,7 @@ div.titre {
 	color: var(--colortexttitlenotab2);
 }
 
-table.table-fiche-title .col-title div.titre{
+table.table-fiche-title .col-title div.titre, .col-right .btnTitle-icon {
 	line-height: 40px;
 }
 table.table-fiche-title {
@@ -4987,7 +5023,7 @@ table.valid {
 	padding-right: 4px;
 	padding-bottom: 4px;
 	margin: 0px 0px;
-	background: #fcf8e3;
+	background: var(--tablevalidbgcolor);
 }
 
 .validtitre {
@@ -5017,12 +5053,30 @@ div.ui-tooltip.mytooltip {
 	-webkit-box-shadow:0.5px 0.5px 4px 0px rgba(0, 0, 0, 0.5);
 	-o-box-shadow:     0.5px 0.5px 4px 0px rgba(0, 0, 0, 0.5);
 	box-shadow:        0.5px 0.5px 4px 0px rgba(0, 0, 0, 0.5);
-	filter:progid:DXImageTransform.Microsoft.Shadow(color=#656565, Direction=134, Strength=5);
+	filter: progid:DXImageTransform.Microsoft.Shadow(color=#656565, Direction=134, Strength=5);
 	background: var(--tooltipbgcolor) !important;
-	color : var(--tooltipfontcolor);
+	color: var(--tooltipfontcolor);
 	line-height: 1.6em;
 	min-width: 550px;
 }
+
+<?php
+if (!empty($conf->global->THEME_DARKMODEENABLED)) {
+	print "/* For dark mode */\n";
+	if ($conf->global->THEME_DARKMODEENABLED != 2) {
+		print "@media (prefers-color-scheme: dark) {";	// To test, click on the 3 dots menu, then Other options then Display then emulate prefer-color-schemes
+	} else {
+		print "@media not print {";
+	}
+	?>
+	div.ui-tooltip.mytooltip {
+		border: 1px solid #bbb !important;
+	}
+	<?php
+	print '}';
+}
+?>
+
 @media only screen and (max-width: 768px)
 {
 	div.ui-tooltip.mytooltip {
@@ -5161,7 +5215,7 @@ div.visible {
 	display: block;
 }
 
-div.hidden, header.hidden, td.hidden, img.hidden, span.hidden, div.showifmore {
+div.hidden, header.hidden, tr.hidden, td.hidden, img.hidden, span.hidden, div.showifmore {
 	display: none;
 }
 .unvisible {
@@ -5211,6 +5265,7 @@ span[phptag] {
 .websitebar .button.bordertransp {
 	color: unset;
 	text-decoration: unset !important;
+	margin: 0px 4px 0px 4px  !important
 }
 
 .websitebar {
@@ -5258,7 +5313,7 @@ span[phptag] {
 .websiteinputurl {
 	display: inline-block;
 	vertical-align: middle;
-	line-height: 28px;
+	line-height: 26px;
 }
 .websiteiframenoborder {
 	border: 0px;
@@ -5808,7 +5863,7 @@ pre#editfilecontentaceeditorid {
 /* ============================================================================== */
 
 div.scroll2 {
-	width: <?php print isset($_SESSION['dol_screenwidth']) ?max($_SESSION['dol_screenwidth'] - 830, 450) : '450'; ?>px !important;
+	width: <?php print isset($_SESSION['dol_screenwidth']) ?max((int) $_SESSION['dol_screenwidth'] - 830, 450) : '450'; ?>px !important;
 }
 
 div#GanttChartDIVglisthead, div#GanttChartDIVgcharthead {
@@ -6464,16 +6519,27 @@ ul.select2-results__options li {
 	font-size: 0.95em;
 }
 
+select.multiselectononeline {
+	padding: 0;
+	vertical-align: middle;
+	min-height: unset;
+	height: 28px !important;
+	opacity: 0;
+	/* width: 1px !important; */
+}
+
 @media only screen and (min-width: 767px)
 {
 	/* CSS to have the dropdown boxes larger that the input search area */
 	.select2-container.select2-container--open .select2-dropdown.ui-dialog {
 		min-width: 220px !important;
 	}
-	.select2-container.select2-container--open .select2-dropdown--below {
+	.select2-container.select2-container--open .select2-dropdown--below,
+	.select2-container.select2-container--open .select2-dropdown--above {
 		min-width: 220px !important;
 	}
-	.onrightofpage span.select2-dropdown.ui-dialog.select2-dropdown--below {
+	.onrightofpage span.select2-dropdown.ui-dialog.select2-dropdown--below,
+	.onrightofpage span.select2-dropdown.ui-dialog.select2-dropdown--above{
 		min-width: 140px !important;
 	}
 
@@ -6715,12 +6781,17 @@ dd.dropdowndd ul li {
 /* ============================================================================== */
 
 .searchpage .tagtr .tagtd {
-	padding-bottom: 3px;
+	padding-top: 2px;
+	padding-bottom: 2px;
 }
 .searchpage .tagtr .tagtd .button {
 	background: unset;
 	border: unset;
 }
+.searchpage .searchform input {
+	font-size: 1.15em;
+}
+
 
 li.ui-li-divider .ui-link {
 	color: #FFF !important;
@@ -7538,7 +7609,7 @@ div.clipboardCPValue.hidewithsize {
 	}
 
 	.dropdown dd ul {
-		max-width: 350px;
+		max-width: 370px;
 	}
 }
 /* rule to reduce top menu - 2nd reduction: Reduce width of top menu icons again */

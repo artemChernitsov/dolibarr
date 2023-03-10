@@ -1,5 +1,6 @@
 <?php
-/* Copyright (C) 2019  Laurent Destailleur <eldy@users.sourceforge.net>
+/* Copyright (C) 2019	Laurent Destailleur	<eldy@users.sourceforge.net>
+ * Copyright (C) 2023	Benjamin Falière	<benjamin.faliere@altairis.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -102,9 +103,9 @@ class BOM extends CommonObject
 		'label' => array('type'=>'varchar(255)', 'label'=>'Label', 'enabled'=>1, 'visible'=>1, 'position'=>30, 'notnull'=>1, 'searchall'=>1, 'showoncombobox'=>'2', 'autofocusoncreate'=>1, 'css'=>'minwidth300 maxwidth400', 'csslist'=>'tdoverflowmax200'),
 		'bomtype' => array('type'=>'integer', 'label'=>'Type', 'enabled'=>1, 'visible'=>1, 'position'=>33, 'notnull'=>1, 'default'=>'0', 'arrayofkeyval'=>array(0=>'Manufacturing', 1=>'Disassemble'), 'css'=>'minwidth175', 'csslist'=>'minwidth175 center'),
 		//'bomtype' => array('type'=>'integer', 'label'=>'Type', 'enabled'=>1, 'visible'=>-1, 'position'=>32, 'notnull'=>1, 'default'=>'0', 'arrayofkeyval'=>array(0=>'Manufacturing')),
-		'fk_product' => array('type'=>'integer:Product:product/class/product.class.php:1:(finished IS NULL or finished <> 0)', 'label'=>'Product', 'picto'=>'product', 'enabled'=>1, 'visible'=>1, 'position'=>35, 'notnull'=>1, 'index'=>1, 'help'=>'ProductBOMHelp', 'css'=>'maxwidth500', 'csslist'=>'tdoverflowmax100'),
+		'fk_product' => array('type'=>'integer:Product:product/class/product.class.php:1:((finished:is:null) or (finished:!=:0))', 'label'=>'Product', 'picto'=>'product', 'enabled'=>1, 'visible'=>1, 'position'=>35, 'notnull'=>1, 'index'=>1, 'help'=>'ProductBOMHelp', 'css'=>'maxwidth500', 'csslist'=>'tdoverflowmax100'),
 		'description' => array('type'=>'text', 'label'=>'Description', 'enabled'=>1, 'visible'=>-1, 'position'=>60, 'notnull'=>-1,),
-		'qty' => array('type'=>'real', 'label'=>'Quantity', 'enabled'=>1, 'visible'=>1, 'default'=>1, 'position'=>55, 'notnull'=>1, 'isameasure'=>'1', 'css'=>'maxwidth75imp'),
+		'qty' => array('type'=>'real', 'label'=>'Quantity', 'enabled'=>1, 'visible'=>1, 'default'=>1, 'position'=>55, 'notnull'=>1, 'isameasure'=>'1', 'css'=>'maxwidth50imp right'),
 		//'efficiency' => array('type'=>'real', 'label'=>'ManufacturingEfficiency', 'enabled'=>1, 'visible'=>-1, 'default'=>1, 'position'=>100, 'notnull'=>0, 'css'=>'maxwidth50imp', 'help'=>'ValueOfMeansLossForProductProduced'),
 		'duration' => array('type'=>'duration', 'label'=>'EstimatedDuration', 'enabled'=>1, 'visible'=>-1, 'position'=>101, 'notnull'=>-1, 'css'=>'maxwidth50imp', 'help'=>'EstimatedDurationDesc'),
 		'fk_warehouse' => array('type'=>'integer:Entrepot:product/stock/class/entrepot.class.php:0', 'label'=>'WarehouseForProduction', 'picto'=>'stock', 'enabled'=>1, 'visible'=>-1, 'position'=>102, 'css'=>'maxwidth500', 'csslist'=>'tdoverflowmax100'),
@@ -476,7 +477,7 @@ class BOM extends CommonObject
 		$sql .= $this->getFieldList();
 		$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.' as t';
 		if ($this->ismultientitymanaged) {
-			$sql .= ' WHERE t.entity IN ('.getEntity($this->table_element).')';
+			$sql .= ' WHERE t.entity IN ('.getEntity($this->element).')';
 		} else {
 			$sql .= ' WHERE 1 = 1';
 		}
@@ -568,9 +569,10 @@ class BOM extends CommonObject
 	 * @param	int		$fk_bom_child			Id of BOM Child
 	 * @param	string	$import_key				Import Key
 	 * @param	string	$fk_unit				Unit
+	 * @param	array		$array_options		extrafields array
 	 * @return	int								<0 if KO, Id of created object if OK
 	 */
-	public function addLine($fk_product, $qty, $qty_frozen = 0, $disable_stock_change = 0, $efficiency = 1.0, $position = -1, $fk_bom_child = null, $import_key = null, $fk_unit = '')
+	public function addLine($fk_product, $qty, $qty_frozen = 0, $disable_stock_change = 0, $efficiency = 1.0, $position = -1, $fk_bom_child = null, $import_key = null, $fk_unit = '', $array_options = 0)
 	{
 		global $mysoc, $conf, $langs, $user;
 
@@ -640,6 +642,10 @@ class BOM extends CommonObject
 			$this->line->position = $rankToUse;
 			$this->line->fk_unit = $fk_unit;
 
+			if (is_array($array_options) && count($array_options) > 0) {
+				$this->line->array_options = $array_options;
+			}
+
 			$result = $this->line->create($user);
 
 			if ($result > 0) {
@@ -668,10 +674,11 @@ class BOM extends CommonObject
 	 * @param	float	$efficiency				Efficiency in MO
 	 * @param	int		$position				Position of BOM-Line in BOM-Lines
 	 * @param	string	$import_key				Import Key
-	 * @param	int		$fk_unit					Unit of line
+	 * @param	int		$fk_unit				Unit of line
+	 * @param	array	$array_options			extrafields array
 	 * @return	int								<0 if KO, Id of updated BOM-Line if OK
 	 */
-	public function updateLine($rowid, $qty, $qty_frozen = 0, $disable_stock_change = 0, $efficiency = 1.0, $position = -1, $import_key = null, $fk_unit = 0)
+	public function updateLine($rowid, $qty, $qty_frozen = 0, $disable_stock_change = 0, $efficiency = 1.0, $position = -1, $import_key = null, $fk_unit = 0, $array_options = 0)
 	{
 		global $mysoc, $conf, $langs, $user;
 
@@ -743,6 +750,13 @@ class BOM extends CommonObject
 			$this->line->position = $rankToUse;
 			if (!empty($fk_unit)) {
 				$this->line->fk_unit = $fk_unit;
+			}
+
+			if (is_array($array_options) && count($array_options) > 0) {
+				// We replace values in this->line->array_options only for entries defined into $array_options
+				foreach ($array_options as $key => $value) {
+					$this->line->array_options[$key] = $array_options[$key];
+				}
 			}
 
 			$result = $this->line->update($user);
@@ -1352,7 +1366,11 @@ class BOM extends CommonObject
 						$line->unit_cost = price2num((!empty($tmpproduct->cost_price)) ? $tmpproduct->cost_price : $tmpproduct->pmp);
 						if (empty($line->unit_cost)) {
 							if ($productFournisseur->find_min_price_product_fournisseur($line->fk_product) > 0) {
-								$line->unit_cost = $productFournisseur->fourn_unitprice;
+								if ($productFournisseur->fourn_remise_percent != "0") {
+									$line->unit_cost = $productFournisseur->fourn_unitprice_with_discount;
+								} else {
+									$line->unit_cost = $productFournisseur->fourn_unitprice;
+								}
 							}
 						}
 
@@ -1365,7 +1383,8 @@ class BOM extends CommonObject
 						if ($res > 0) {
 							$bom_child->calculateCosts();
 							$line->childBom[] = $bom_child;
-							$this->total_cost += $bom_child->total_cost * $line->qty;
+							$this->total_cost += price2num($bom_child->total_cost * $line->qty, 'MT');
+							$this->total_cost += $line->total_cost;
 						} else {
 							$this->error = $bom_child->error;
 							return -2;
@@ -1723,7 +1742,7 @@ class BOMLine extends CommonObjectLine
 		$sql .= $this->getFieldList();
 		$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.' as t';
 		if ($this->ismultientitymanaged) {
-			$sql .= ' WHERE t.entity IN ('.getEntity($this->table_element).')';
+			$sql .= ' WHERE t.entity IN ('.getEntity($this->element).')';
 		} else {
 			$sql .= ' WHERE 1 = 1';
 		}

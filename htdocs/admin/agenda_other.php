@@ -328,7 +328,7 @@ print '<td>'.$form->textwithpicto($langs->trans("AGENDA_DEFAULT_VIEW"), $htmltex
 print '<td class="center">&nbsp;</td>'."\n";
 print '<td class="right">'."\n";
 $tmplist = array(''=>'&nbsp;', 'show_list'=>$langs->trans("ViewList"), 'show_month'=>$langs->trans("ViewCal"), 'show_week'=>$langs->trans("ViewWeek"), 'show_day'=>$langs->trans("ViewDay"), 'show_peruser'=>$langs->trans("ViewPerUser"));
-print $form->selectarray('AGENDA_DEFAULT_VIEW', $tmplist, $conf->global->AGENDA_DEFAULT_VIEW);
+print $form->selectarray('AGENDA_DEFAULT_VIEW', $tmplist, getDolGlobalString('AGENDA_DEFAULT_VIEW'));
 print '</td></tr>'."\n";
 
 // Manual or automatic
@@ -368,7 +368,7 @@ if (!is_array($result) && $result < 0) {
 } elseif (count($result) > 0) {
 	$defval = reset($result)->value;
 }
-$formactions->form_select_status_action('agenda', $defval, 1, "AGENDA_EVENT_DEFAULT_STATUS", 0, 1, 'maxwidth200');
+$formactions->form_select_status_action('agenda', $defval, 1, "AGENDA_EVENT_DEFAULT_STATUS", 0, 1, 'maxwidth200 onrightofpage');
 print '</td></tr>'."\n";
 
 // AGENDA_DEFAULT_FILTER_TYPE
@@ -390,7 +390,7 @@ print '<tr class="oddeven">'."\n";
 print '<td>'.$langs->trans("AGENDA_DEFAULT_FILTER_STATUS").'</td>'."\n";
 print '<td class="center">&nbsp;</td>'."\n";
 print '<td class="right">'."\n";
-$formactions->form_select_status_action('agenda', $conf->global->AGENDA_DEFAULT_FILTER_STATUS, 1, 'AGENDA_DEFAULT_FILTER_STATUS', 1, 2, 'minwidth100');
+$formactions->form_select_status_action('agenda', getDolGlobalString('AGENDA_DEFAULT_FILTER_STATUS'), 1, 'AGENDA_DEFAULT_FILTER_STATUS', 1, 2, 'minwidth100');
 print '</td></tr>'."\n";
 
 print '</table>';

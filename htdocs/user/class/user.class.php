@@ -436,7 +436,7 @@ class User extends CommonObject
 		$sql .= " u.admin, u.login, u.note_private, u.note_public,";
 		$sql .= " u.pass, u.pass_crypted, u.pass_temp, u.api_key,";
 		$sql .= " u.fk_soc, u.fk_socpeople, u.fk_member, u.fk_user, u.ldap_sid, u.fk_user_expense_validator, u.fk_user_holiday_validator,";
-		$sql .= " u.statut, u.lang, u.entity,";
+		$sql .= " u.statut as status, u.lang, u.entity,";
 		$sql .= " u.datec as datec,";
 		$sql .= " u.tms as datem,";
 		$sql .= " u.datelastlogin as datel,";
@@ -553,7 +553,10 @@ class User extends CommonObject
 				$this->note_public = $obj->note_public;
 				$this->note_private = $obj->note_private;
 				$this->note			= $obj->note_private;	// deprecated
-				$this->statut		= $obj->statut;
+
+				$this->statut		= $obj->status;			// deprecated
+				$this->status		= $obj->status;
+
 				$this->photo		= $obj->photo;
 				$this->openid		= $obj->openid;
 				$this->lang			= $obj->lang;
@@ -707,6 +710,7 @@ class User extends CommonObject
 		global $conf;
 		// For compatibility with bad naming permissions on module
 		$moduletomoduletouse = array(
+			'compta' => 'comptabilite',
 			'contract' => 'contrat',
 			'member' => 'adherent',
 			'mo' => 'mrp',
@@ -735,7 +739,8 @@ class User extends CommonObject
 
 		$moduleRightsMapping = array(
 			'product' => 'produit',	// We must check $user->rights->produit...
-			'margin' => 'margins'
+			'margin' => 'margins',
+			'comptabilite' => 'compta'
 		);
 
 		$rightsPath = $module;
@@ -757,8 +762,10 @@ class User extends CommonObject
 		// In $conf->modules, we have 'accounting', 'product', 'facture', ...
 		// In $user->rights, we have 'accounting', 'produit', 'facture', ...
 		//var_dump($module);
+		//var_dump($rightsPath);
 		//var_dump($this->rights->$rightsPath);
 		//var_dump($conf->modules);
+		//var_dump($module.' '.isModEnabled($module).' '.$rightsPath.' '.$permlevel1.' '.$permlevel2);
 		if (!isModEnabled($module)) {
 			return 0;
 		}
@@ -775,6 +782,7 @@ class User extends CommonObject
 		}
 
 		//var_dump($this->rights);
+		//var_dump($rightsPath.' '.$permlevel1.' '.$permlevel2);
 		if (empty($rightsPath) || empty($this->rights) || empty($this->rights->$rightsPath) || empty($permlevel1)) {
 			return 0;
 		}
@@ -1199,6 +1207,7 @@ class User extends CommonObject
 		$sql .= " ".$this->db->prefix()."usergroup_user as gu,";
 		$sql .= " ".$this->db->prefix()."rights_def as r";
 		$sql .= " WHERE r.id = gr.fk_id";
+		// A very strange business rules. Must be same than into user->getrights() user/perms.php and user/group/perms.php
 		if (!empty($conf->global->MULTICOMPANY_BACKWARD_COMPATIBILITY)) {
 			if (isModEnabled('multicompany') && !empty($conf->global->MULTICOMPANY_TRANSVERSE_MODE)) {
 				$sql .= " AND gu.entity IN (0,".$conf->entity.")";
@@ -1207,12 +1216,13 @@ class User extends CommonObject
 			}
 		} else {
 			$sql .= " AND gr.entity = ".((int) $conf->entity);	// Only groups created in current entity
-			// The entity on the table usergroup_user should be useless and shoumd never be used because it is alreay into gr and r.
+			// The entity on the table usergroup_user should be useless and should never be used because it is alreay into gr and r.
 			// but when using MULTICOMPANY_TRANSVERSE_MODE, we may insert record that make rubbish result due to duplicate record of
 			// other entities, so we are forced to add a filter here
 			$sql .= " AND gu.entity IN (0,".$conf->entity.")";
 			$sql .= " AND r.entity = ".((int) $conf->entity);	// Only permission of modules enabled in current entity
 		}
+		// End of strange business rule
 		$sql .= " AND gr.fk_usergroup = gu.fk_usergroup";
 		$sql .= " AND gu.fk_user = ".((int) $this->id);
 		$sql .= " AND r.perms IS NOT NULL";
@@ -1350,7 +1360,11 @@ class User extends CommonObject
 		$error = 0;
 
 		// Check parameters
-		if ($this->statut == $status) {
+		if (isset($this->statut)) {
+			if ($this->statut == $status) {
+				return 0;
+			}
+		} elseif (isset($this->status) && $this->status == $status) {
 			return 0;
 		}
 
@@ -1390,8 +1404,8 @@ class User extends CommonObject
 	 * Adds it to non existing supplied categories.
 	 * Existing categories are left untouch.
 	 *
-	 * @param int[]|int $categories Category or categories IDs
-	 * @return void
+	 * @param 	int[]|int 	$categories 	Category or categories IDs
+	 * @return 	int							<0 if KO, >0 if OK
 	 */
 	public function setCategories($categories)
 	{
@@ -1522,7 +1536,7 @@ class User extends CommonObject
 			return -1;
 		} elseif (preg_match('/['.preg_quote($badCharUnauthorizedIntoLoginName, '/').']/', $this->login)) {
 			$langs->load("errors");
-			$this->error = $langs->trans("ErrorBadCharIntoLoginName");
+			$this->error = $langs->trans("ErrorBadCharIntoLoginName", $langs->transnoentitiesnoconv("Login"));
 			return -1;
 		}
 
@@ -1918,7 +1932,7 @@ class User extends CommonObject
 			return -1;
 		} elseif (preg_match('/['.preg_quote($badCharUnauthorizedIntoLoginName, '/').']/', $this->login)) {
 			$langs->load("errors");
-			$this->error = $langs->trans("ErrorBadCharIntoLoginName");
+			$this->error = $langs->trans("ErrorBadCharIntoLoginName", $langs->transnoentitiesnoconv("Login"));
 			return -1;
 		}
 
@@ -2025,9 +2039,9 @@ class User extends CommonObject
 
 			// Update password
 			if (!empty($this->pass)) {
-				if ($this->pass != $this->pass_indatabase && $this->pass != $this->pass_indatabase_crypted) {
+				if ($this->pass != $this->pass_indatabase && !dol_verifyHash($this->pass, $this->pass_indatabase_crypted)) {
 					// If a new value for password is set and different than the one crypted into database
-					$result = $this->setPassword($user, $this->pass, 0, $notrigger, $nosyncmemberpass);
+					$result = $this->setPassword($user, $this->pass, 0, $notrigger, $nosyncmemberpass, 0, 1);
 					if ($result < 0) {
 						return -5;
 					}
@@ -2371,7 +2385,7 @@ class User extends CommonObject
 	/**
 	 *  Send new password by email
 	 *
-	 *  @param	User	$user           Object user that send the email (not the user we send too)
+	 *  @param	User	$user           Object user that send the email (not the user we send to) @todo object $user is not used !
 	 *  @param	string	$password       New password
 	 *	@param	int		$changelater	0=Send clear passwod into email, 1=Change password only after clicking on confirm email. @todo Add method 2 = Send link to reset password
 	 *  @return int 		            < 0 si erreur, > 0 si ok
@@ -2437,6 +2451,9 @@ class User extends CommonObject
 			//print $password.'-'.$this->id.'-'.$dolibarr_main_instance_unique_id;
 			$url = $urlwithroot.'/user/passwordforgotten.php?action=validatenewpassword';
 			$url .= '&username='.urlencode($this->login)."&passworduidhash=".urlencode(dol_hash($password.'-'.$this->id.'-'.$dolibarr_main_instance_unique_id));
+			if (!empty($conf->multicompany->enabled)) {
+				$url .= '&entity='.(!empty($this->entity) ? $this->entity : 1);
+			}
 
 			$msgishtml = 1;
 
@@ -3253,7 +3270,8 @@ class User extends CommonObject
 		$this->iplastlogin = '127.0.0.1';
 		$this->datepreviouslogin = $now;
 		$this->ippreviouslogin = '127.0.0.1';
-		$this->statut = 1;
+		$this->statut = 1;		// deprecated
+		$this->status = 1;
 
 		$this->entity = 1;
 		return 1;

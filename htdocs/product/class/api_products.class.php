@@ -222,12 +222,10 @@ class Products extends DolibarrApi
 		// Add sql filters
 		if ($sqlfilters) {
 			$errormessage = '';
-			if (!DolibarrApi::_checkFilters($sqlfilters, $errormessage)) {
-				throw new RestException(503, 'Error when validating parameter sqlfilters -> '.$errormessage);
+			$sql .= forgeSQLFromUniversalSearchCriteria($sqlfilters, $errormessage);
+			if ($errormessage) {
+				throw new RestException(400, 'Error when validating parameter sqlfilters -> '.$errormessage);
 			}
-			//var_dump($sqlfilters);exit;
-			$regexstring = '\(([^:\'\(\)]+:[^:\'\(\)]+:[^\(\)]+)\)';	// We must accept datc:<:2020-01-01 10:10:10
-			$sql .= " AND (".preg_replace_callback('/'.$regexstring.'/', 'DolibarrApi::_forge_criteria_callback', $sqlfilters).")";
 		}
 
 		//this query will return total products with the filters given
@@ -454,7 +452,19 @@ class Products extends DolibarrApi
 		global $user;
 		$user = DolibarrApiAccess::$user;
 
-		return $this->product->delete(DolibarrApiAccess::$user);
+		$res = $this->product->delete(DolibarrApiAccess::$user);
+		if ($res < 0) {
+			throw new RestException(500, "Can't delete, error occurs");
+		} elseif ($res == 0) {
+			throw new RestException(409, "Can't delete, that product is probably used");
+		}
+
+		return array(
+			'success' => array(
+				'code' => 200,
+				'message' => 'Object deleted'
+			)
+		);
 	}
 
 	/**
@@ -583,7 +593,7 @@ class Products extends DolibarrApi
 		}
 
 		if ($result < 0) {
-			throw new RestException(503, 'Error when retrieve category list : '.array_merge(array($categories->error), $categories->errors));
+			throw new RestException(503, 'Error when retrieve category list : '.join(',', array_merge(array($categories->error), $categories->errors)));
 		}
 
 		return $result;
@@ -616,7 +626,7 @@ class Products extends DolibarrApi
 		}
 
 		if ($result < 0) {
-			throw new RestException(503, 'Error when retrieve prices list : '.array_merge(array($this->product->error), $this->product->errors));
+			throw new RestException(503, 'Error when retrieve prices list : '.join(',', array_merge(array($this->product->error), $this->product->errors)));
 		}
 
 		return array(
@@ -707,7 +717,7 @@ class Products extends DolibarrApi
 		}
 
 		if ($result < 0) {
-			throw new RestException(503, 'Error when retrieve prices list : '.array_merge(array($this->product->error), $this->product->errors));
+			throw new RestException(503, 'Error when retrieve prices list : '.join(',', array_merge(array($this->product->error), $this->product->errors)));
 		}
 
 		return array(
@@ -893,11 +903,10 @@ class Products extends DolibarrApi
 		// Add sql filters
 		if ($sqlfilters) {
 			$errormessage = '';
-			if (!DolibarrApi::_checkFilters($sqlfilters, $errormessage)) {
-				throw new RestException(503, 'Error when validating parameter sqlfilters -> '.$errormessage);
+			$sql .= forgeSQLFromUniversalSearchCriteria($sqlfilters, $errormessage);
+			if ($errormessage) {
+				throw new RestException(400, 'Error when validating parameter sqlfilters -> '.$errormessage);
 			}
-			$regexstring = '\(([^:\'\(\)]+:[^:\'\(\)]+:[^\(\)]+)\)';
-			$sql .= " AND (".preg_replace_callback('/'.$regexstring.'/', 'DolibarrApi::_forge_criteria_callback', $sqlfilters).")";
 		}
 
 		$sql .= $this->db->order($sortfield, $sortorder);
@@ -1021,11 +1030,10 @@ class Products extends DolibarrApi
 		// Add sql filters
 		if ($sqlfilters) {
 			$errormessage = '';
-			if (!DolibarrApi::_checkFilters($sqlfilters, $errormessage)) {
-				throw new RestException(503, 'Error when validating parameter sqlfilters -> '.$errormessage);
+			$sql .= forgeSQLFromUniversalSearchCriteria($sqlfilters, $errormessage);
+			if ($errormessage) {
+				throw new RestException(400, 'Error when validating parameter sqlfilters -> '.$errormessage);
 			}
-			$regexstring = '\(([^:\'\(\)]+:[^:\'\(\)]+:[^\(\)]+)\)';
-			$sql .= " AND (".preg_replace_callback('/'.$regexstring.'/', 'DolibarrApi::_forge_criteria_callback', $sqlfilters).")";
 		}
 
 		$sql .= $this->db->order($sortfield, $sortorder);

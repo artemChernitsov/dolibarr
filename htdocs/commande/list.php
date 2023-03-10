@@ -9,7 +9,7 @@
  * Copyright (C) 2015-2018  Frédéric France         <frederic.france@netlogic.fr>
  * Copyright (C) 2015       Marcos García           <marcosgdf@gmail.com>
  * Copyright (C) 2015       Jean-François Ferry     <jfefe@aternatik.fr>
- * Copyright (C) 2016-2021  Ferran Marcet           <fmarcet@2byte.es>
+ * Copyright (C) 2016-2023  Ferran Marcet           <fmarcet@2byte.es>
  * Copyright (C) 2018       Charlene Benke	        <charlie@patas-monkey.com>
  * Copyright (C) 2021	   	Anthony Berton			<anthony.berton@bb2a.fr>
  *
@@ -201,10 +201,10 @@ $arrayfields = array(
 	'c.multicurrency_total_ttc'=>array('label'=>'MulticurrencyAmountTTC', 'checked'=>0, 'enabled'=>(!isModEnabled("multicurrency") ? 0 : 1), 'position'=>110),
 	'u.login'=>array('label'=>"Author", 'checked'=>1, 'position'=>115),
 	'sale_representative'=>array('label'=>"SaleRepresentativesOfThirdParty", 'checked'=>0, 'position'=>116),
-	'total_pa' => array('label' => (getDolGlobalString('MARGIN_TYPE') == '1' ? 'BuyingPrice' : 'CostPrice'), 'checked' => 0, 'position' => 300, 'enabled' => (!isModEnabled('margin') || !$user->rights->margins->liretous ? 0 : 1)),
-	'total_margin' => array('label' => 'Margin', 'checked' => 0, 'position' => 301, 'enabled' => (!isModEnabled('margin') || !$user->rights->margins->liretous ? 0 : 1)),
-	'total_margin_rate' => array('label' => 'MarginRate', 'checked' => 0, 'position' => 302, 'enabled' => (!isModEnabled('margin') || !$user->rights->margins->liretous || empty($conf->global->DISPLAY_MARGIN_RATES) ? 0 : 1)),
-	'total_mark_rate' => array('label' => 'MarkRate', 'checked' => 0, 'position' => 303, 'enabled' => (!isModEnabled('margin') || !$user->rights->margins->liretous || empty($conf->global->DISPLAY_MARK_RATES) ? 0 : 1)),
+	'total_pa' => array('label' => (getDolGlobalString('MARGIN_TYPE') == '1' ? 'BuyingPrice' : 'CostPrice'), 'checked' => 0, 'position' => 300, 'enabled' => (!isModEnabled('margin') || !$user->hasRight("margins", "liretous") ? 0 : 1)),
+	'total_margin' => array('label' => 'Margin', 'checked' => 0, 'position' => 301, 'enabled' => (!isModEnabled('margin') || !$user->hasRight("margins", "liretous") ? 0 : 1)),
+	'total_margin_rate' => array('label' => 'MarginRate', 'checked' => 0, 'position' => 302, 'enabled' => (!isModEnabled('margin') || !$user->hasRight("margins", "liretous") || empty($conf->global->DISPLAY_MARGIN_RATES) ? 0 : 1)),
+	'total_mark_rate' => array('label' => 'MarkRate', 'checked' => 0, 'position' => 303, 'enabled' => (!isModEnabled('margin') || !$user->hasRight("margins", "liretous") || empty($conf->global->DISPLAY_MARK_RATES) ? 0 : 1)),
 	'c.datec'=>array('label'=>"DateCreation", 'checked'=>0, 'position'=>120),
 	'c.tms'=>array('label'=>"DateModificationShort", 'checked'=>0, 'position'=>125),
 	'c.date_cloture'=>array('label'=>"DateClosing", 'checked'=>0, 'position'=>130),
@@ -235,7 +235,7 @@ if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massa
 	$massaction = '';
 }
 
-$parameters = array('socid'=>$socid);
+$parameters = array('socid'=>$socid, 'arrayfields'=>&$arrayfields);
 $reshook = $hookmanager->executeHooks('doActions', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
 if ($reshook < 0) {
 	setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
@@ -298,19 +298,19 @@ if (empty($reshook)) {
 	// Mass actions
 	$objectclass = 'Commande';
 	$objectlabel = 'Orders';
-	$permissiontoread = $user->rights->commande->lire;
-	$permissiontoadd = $user->rights->commande->creer;
-	$permissiontodelete = $user->rights->commande->supprimer;
+	$permissiontoread = $user->hasRight("commande", "lire");
+	$permissiontoadd = $user->hasRight("commande", "creer");
+	$permissiontodelete = $user->hasRight("commande", "supprimer");
 	if (!empty($conf->global->MAIN_USE_ADVANCED_PERMS)) {
-		$permissiontovalidate = $user->rights->commande->order_advance->validate;
-		$permissiontoclose = $user->rights->commande->order_advance->close;
-		$permissiontocancel = $user->rights->commande->order_advance->annuler;
-		$permissiontosendbymail = $user->rights->commande->order_advance->send;
+		$permissiontovalidate = $user->hasRight("commande", "order_advance", "validate");
+		$permissiontoclose = $user->hasRight("commande", "order_advance", "close");
+		$permissiontocancel = $user->hasRight("commande", "order_advance", "annuler");
+		$permissiontosendbymail = $user->hasRight("commande", "order_advance", "send");
 	} else {
-		$permissiontovalidate = $user->rights->commande->creer;
-		$permissiontoclose = $user->rights->commande->creer;
-		$permissiontocancel = $user->rights->commande->creer;
-		$permissiontosendbymail = $user->rights->commande->creer;
+		$permissiontovalidate = $user->hasRight("commande", "creer");
+		$permissiontoclose = $user->hasRight("commande", "creer");
+		$permissiontocancel = $user->hasRight("commande", "creer");
+		$permissiontosendbymail = $user->hasRight("commande", "creer");
 	}
 	$uploaddir = $conf->commande->multidir_output[$conf->entity];
 	$triggersendname = 'ORDER_SENTBYMAIL';
@@ -413,7 +413,7 @@ if (empty($reshook)) {
 							$desc = dol_concatdesc($desc, $langs->trans("Order").' '.$cmd->ref.' - '.dol_print_date($cmd->date, 'day'));
 						}
 
-						if ($lines[$i]->subprice < 0) {
+						if ($lines[$i]->subprice < 0 && empty($conf->global->INVOICE_KEEP_DISCOUNT_LINES_AS_IN_ORIGIN)) {
 							// Negative line, we create a discount line
 							$discount = new DiscountAbsolute($db);
 							$discount->fk_soc = $objecttmp->socid;
@@ -679,14 +679,14 @@ if ($action == 'validate' && $permissiontoadd) {
 						$idwarehouse = 0;
 					}
 					if ($objecttmp->valid($user, $idwarehouse)) {
-						setEventMessage($langs->trans('hasBeenValidated', $objecttmp->ref), 'mesgs');
+						setEventMessages($langs->trans('hasBeenValidated', $objecttmp->ref), null, 'mesgs');
 					} else {
-						setEventMessage($objecttmp->error, $objecttmp->errors, 'errors');
+						setEventMessages($objecttmp->error, $objecttmp->errors, 'errors');
 						$error++;
 					}
 				} else {
 					$langs->load("errors");
-					setEventMessage($langs->trans('ErrorIsNotADraft', $objecttmp->ref), 'errors');
+					setEventMessages($langs->trans('ErrorIsNotADraft', $objecttmp->ref), null, 'errors');
 					$error++;
 				}
 			} else {
@@ -710,14 +710,14 @@ if ($action == 'shipped' && $permissiontoadd) {
 			if ($objecttmp->fetch($checked)) {
 				if ($objecttmp->statut == 1 || $objecttmp->statut == 2) {
 					if ($objecttmp->cloture($user)) {
-						setEventMessage($langs->trans('PassedInClosedStatus', $objecttmp->ref), 'mesgs');
+						setEventMessages($langs->trans('PassedInClosedStatus', $objecttmp->ref), null, 'mesgs');
 					} else {
-						setEventMessage($langs->trans('CantBeClosed'), 'errors');
+						setEventMessages($langs->trans('CantBeClosed'), null, 'errors');
 						$error++;
 					}
 				} else {
 					$langs->load("errors");
-					setEventMessage($langs->trans('ErrorIsNotADraft', $objecttmp->ref), 'errors');
+					setEventMessages($langs->trans('ErrorIsNotADraft', $objecttmp->ref), null, 'errors');
 					$error++;
 				}
 			} else {
@@ -789,6 +789,9 @@ $company_url_list = array();
 $formcompany = new FormCompany($db);
 $projectstatic = new Project($db);
 
+$varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
+$selectedfields = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage); // This also change content of $arrayfields
+
 $title = $langs->trans("Orders");
 $help_url = "EN:Module_Customers_Orders|FR:Module_Commandes_Clients|ES:Módulo_Pedidos_de_clientes";
 
@@ -825,6 +828,9 @@ if (!empty($extrafields->attributes[$object->table_element]['label'])) {
 $parameters = array();
 $reshook = $hookmanager->executeHooks('printFieldListSelect', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 $sql .= $hookmanager->resPrint;
+
+$sqlfields = $sql; // $sql fields to remove for count total
+
 $sql .= ' FROM '.MAIN_DB_PREFIX.'societe as s';
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s2 ON s2.rowid = s.parent";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_country as country on (country.rowid = s.fk_pays)";
@@ -932,11 +938,15 @@ if ($search_country) {
 if ($search_type_thirdparty && $search_type_thirdparty != '-1') {
 	$sql .= " AND s.fk_typent IN (".$db->sanitize($search_type_thirdparty).')';
 }
-if ($search_company) {
-	$sql .= natural_search('s.nom', $search_company);
-}
-if ($search_company_alias) {
-	$sql .= natural_search('s.name_alias', $search_company_alias);
+if (empty($arrayfields['s.name_alias']['checked']) && $search_company) {
+	$sql .= natural_search(array("s.nom", "s.name_alias"), $search_company);
+} else {
+	if ($search_company) {
+		$sql .= natural_search('s.nom', $search_company);
+	}
+	if ($search_company_alias) {
+		$sql .= natural_search('s.name_alias', $search_company_alias);
+	}
 }
 if ($search_parent_name) {
 	$sql .= natural_search('s2.nom', $search_parent_name);
@@ -1043,21 +1053,31 @@ $parameters = array();
 $reshook = $hookmanager->executeHooks('printFieldListHaving', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 $sql .= empty($hookmanager->resPrint) ? "" : " HAVING 1=1 ".$hookmanager->resPrint;
 
-$sql .= $db->order($sortfield, $sortorder);
-
 // Count total nb of records
 $nbtotalofrecords = '';
 if (empty($conf->global->MAIN_DISABLE_FULL_SCANLIST)) {
-	$result = $db->query($sql);
-	$nbtotalofrecords = $db->num_rows($result);
+	/* The fast and low memory method to get and count full list converts the sql into a sql count */
+	$sqlforcount = preg_replace('/^'.preg_quote($sqlfields, '/').'/', 'SELECT COUNT(*) as nbtotalofrecords', $sql);
+	$sqlforcount = preg_replace('/GROUP BY .*$/', '', $sqlforcount);
+	$resql = $db->query($sqlforcount);
+	if ($resql) {
+		$objforcount = $db->fetch_object($resql);
+		$nbtotalofrecords = $objforcount->nbtotalofrecords;
+	} else {
+		dol_print_error($db);
+	}
 
 	if (($page * $limit) > $nbtotalofrecords) {	// if total resultset is smaller then paging size (filtering), goto and load page 0
 		$page = 0;
 		$offset = 0;
 	}
+	$db->free($resql);
 }
 
-$sql .= $db->plimit($limit + 1, $offset);
+$sql .= $db->order($sortfield, $sortorder);
+if ($limit) {
+	$sql .= $db->plimit($limit + 1, $offset);
+}
 //print $sql;
 
 $resql = $db->query($sql);
@@ -1267,7 +1287,7 @@ if ($resql) {
 	if ($permissiontocancel) {
 		$arrayofmassactions['cancelorders'] = img_picto('', 'close_title', 'class="pictofixedwidth"').$langs->trans("Cancel");
 	}
-	if (isModEnabled('facture') && $user->rights->facture->creer) {
+	if (isModEnabled('facture') && $user->hasRight("facture", "creer")) {
 		$arrayofmassactions['createbills'] = img_picto('', 'bill', 'class="pictofixedwidth"').$langs->trans("CreateInvoiceForThisCustomer");
 	}
 	if ($permissiontoclose) {
@@ -1374,7 +1394,7 @@ if ($resql) {
 	$moreforfilter = '';
 
 	// If the user can view prospects? sales other than his own
-	if ($user->rights->user->user->lire) {
+	if ($user->hasRight("user", "user", "lire")) {
 		$langs->load("commercial");
 		$moreforfilter .= '<div class="divsearchfield">';
 		$tmptitle = $langs->trans('ThirdPartiesOfSaleRepresentative');
@@ -1382,7 +1402,7 @@ if ($resql) {
 		$moreforfilter .= '</div>';
 	}
 	// If the user can view other users
-	if ($user->rights->user->user->lire) {
+	if ($user->hasRight("user", "user", "lire")) {
 		$moreforfilter .= '<div class="divsearchfield">';
 		$tmptitle = $langs->trans('LinkedToSpecificUsers');
 		$moreforfilter .= img_picto($tmptitle, 'user', 'class="pictofixedwidth"').$form->select_dolusers($search_user, 'search_user', $tmptitle, '', 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth250 widthcentpercentminusx');
@@ -1390,7 +1410,7 @@ if ($resql) {
 	}
 
 	// If the user can view other products/services than his own
-	if (isModEnabled('categorie') && $user->rights->categorie->lire && ($user->rights->produit->lire || $user->rights->service->lire)) {
+	if (isModEnabled('categorie') && $user->hasRight("categorie", "lire") && ($user->hasRight("produit", "lire") || $user->hasRight("service", "lire"))) {
 		include_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 		$moreforfilter .= '<div class="divsearchfield">';
 		$tmptitle = $langs->trans('IncludingProductWithTag');
@@ -1399,7 +1419,7 @@ if ($resql) {
 		$moreforfilter .= '</div>';
 	}
 	// If Categories are enabled & user has rights to see
-	if (isModEnabled('categorie') && $user->rights->categorie->lire) {
+	if (isModEnabled('categorie') && $user->hasRight("categorie", "lire")) {
 		require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 		$moreforfilter .= '<div class="divsearchfield">';
 		$tmptitle = $langs->trans('CustomersProspectsCategoriesShort');
@@ -1495,16 +1515,16 @@ if ($resql) {
 	}
 	// Town
 	if (!empty($arrayfields['s.town']['checked'])) {
-		print '<td class="liste_titre"><input class="flat" type="text" size="4" name="search_town" value="'.dol_escape_htmltag($search_town).'"></td>';
+		print '<td class="liste_titre"><input class="flat width50" type="text" name="search_town" value="'.dol_escape_htmltag($search_town).'"></td>';
 	}
 	// Zip
 	if (!empty($arrayfields['s.zip']['checked'])) {
-		print '<td class="liste_titre"><input class="flat" type="text" size="4" name="search_zip" value="'.dol_escape_htmltag($search_zip).'"></td>';
+		print '<td class="liste_titre"><input class="flat width50" type="text" name="search_zip" value="'.dol_escape_htmltag($search_zip).'"></td>';
 	}
 	// State
 	if (!empty($arrayfields['state.nom']['checked'])) {
 		print '<td class="liste_titre">';
-		print '<input class="flat" size="4" type="text" name="search_state" value="'.dol_escape_htmltag($search_state).'">';
+		print '<input class="flat width50" type="text" name="search_state" value="'.dol_escape_htmltag($search_state).'">';
 		print '</td>';
 	}
 	// Country
@@ -1692,18 +1712,18 @@ if ($resql) {
 	}
 	// Status billed
 	if (!empty($arrayfields['c.facture']['checked'])) {
-		print '<td class="liste_titre maxwidthonsmartphone" align="center">';
+		print '<td class="liste_titre maxwidthonsmartphone center">';
 		print $form->selectyesno('search_billed', $search_billed, 1, 0, 1, 1);
 		print '</td>';
 	}
 	// Import key
 	if (!empty($arrayfields['c.import_key']['checked'])) {
-		print '<td class="liste_titre maxwidthonsmartphone" align="center">';
+		print '<td class="liste_titre maxwidthonsmartphone center">';
 		print '</td>';
 	}
 	// Status
 	if (!empty($arrayfields['c.fk_statut']['checked'])) {
-		print '<td class="liste_titre maxwidthonsmartphone center">';
+		print '<td class="liste_titre right parentonrightofpage">';
 		$liststatus = array(
 			Commande::STATUS_DRAFT=>$langs->trans("StatusOrderDraftShort"),
 			Commande::STATUS_VALIDATED=>$langs->trans("StatusOrderValidated"),
@@ -1713,7 +1733,7 @@ if ($resql) {
 			-2=>$langs->trans("StatusOrderValidatedShort").'+'.$langs->trans("StatusOrderSentShort"),
 			Commande::STATUS_CANCELED=>$langs->trans("StatusOrderCanceledShort")
 		);
-		print $form->selectarray('search_status', $liststatus, $search_status, -5, 0, 0, '', 0, 0, 0, '', 'maxwidth125', 1);
+		print $form->selectarray('search_status', $liststatus, $search_status, -5, 0, 0, '', 0, 0, 0, '', 'maxwidth125 onrightofpage', 1);
 		print '</td>';
 	}
 	// Action column
@@ -1876,7 +1896,7 @@ if ($resql) {
 		print_liste_field_titre($arrayfields['c.import_key']['label'], $_SERVER["PHP_SELF"], "c.import_key", "", $param, '', $sortfield, $sortorder, 'center ');
 	}
 	if (!empty($arrayfields['c.fk_statut']['checked'])) {
-		print_liste_field_titre($arrayfields['c.fk_statut']['label'], $_SERVER["PHP_SELF"], "c.fk_statut", "", $param, '', $sortfield, $sortorder, 'center ');
+		print_liste_field_titre($arrayfields['c.fk_statut']['label'], $_SERVER["PHP_SELF"], "c.fk_statut", "", $param, '', $sortfield, $sortorder, 'right ');
 	}
 	if (empty($conf->global->MAIN_CHECKBOX_LEFT_COLUMN)) {
 		print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'maxwidthsearch center ');
@@ -1933,7 +1953,7 @@ if ($resql) {
 		$companystatic->town = $obj->town;
 		$companystatic->country_code = $obj->country_code;
 		if (!isset($getNomUrl_cache[$obj->socid])) {
-			$getNomUrl_cache[$obj->socid] = $companystatic->getNomUrl(1, 'customer');
+			$getNomUrl_cache[$obj->socid] = $companystatic->getNomUrl(1, 'customer', 100, 0, 1, empty($arrayfields['s.name_alias']['checked']) ? 0 : 1);
 		}
 
 		$generic_commande->id = $obj->rowid;
@@ -2196,7 +2216,7 @@ if ($resql) {
 
 		// Amount HT/net
 		if (!empty($arrayfields['c.total_ht']['checked'])) {
-			  print '<td class="nowrap right"><span class="amount">'.price($obj->total_ht)."</span></td>\n";
+			print '<td class="nowrap right"><span class="amount">'.price($obj->total_ht)."</span></td>\n";
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}
@@ -2584,7 +2604,7 @@ if ($resql) {
 
 		// Status
 		if (!empty($arrayfields['c.fk_statut']['checked'])) {
-			print '<td class="nowrap center">'.$generic_commande->LibStatut($obj->fk_statut, $obj->billed, 5, 1).'</td>';
+			print '<td class="nowrap right">'.$generic_commande->LibStatut($obj->fk_statut, $obj->billed, 5, 1).'</td>';
 			if (!$i) {
 				$totalarray['nbfield']++;
 			}

@@ -1,5 +1,6 @@
 <?php
-/* Copyright (C) 2020  Laurent Destailleur <eldy@users.sourceforge.net>
+/* Copyright (C) 2020       Laurent Destailleur	<eldy@users.sourceforge.net>
+/* Copyright (C) 2022       Alexandre Spangaro	<aspangaro@open-dsi.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,10 +63,24 @@ class RecruitmentJobPosition extends CommonObject
 	 */
 	public $picto = 'recruitmentjobposition';
 
-
+	/**
+	 * Draft status
+	 */
 	const STATUS_DRAFT = 0;
+
+	/**
+	 * Validated
+	 */
 	const STATUS_VALIDATED = 1;
+
+	/**
+	 * Recruited
+	 */
 	const STATUS_RECRUITED = 3;
+
+	/**
+	 * Canceled
+	 */
 	const STATUS_CANCELED = 9;
 
 
@@ -105,11 +120,11 @@ class RecruitmentJobPosition extends CommonObject
 		'label' => array('type'=>'varchar(255)', 'label'=>'JobLabel', 'enabled'=>'1', 'position'=>30, 'notnull'=>1, 'visible'=>1, 'searchall'=>1, 'css'=>'minwidth500', 'csslist'=>'tdoverflowmax300', 'showoncombobox'=>'2', 'autofocusoncreate'=>1),
 		'qty' => array('type'=>'integer', 'label'=>'NbOfEmployeesExpected', 'enabled'=>'1', 'position'=>45, 'notnull'=>1, 'visible'=>1, 'default'=>'1', 'isameasure'=>'1', 'css'=>'maxwidth75imp'),
 		'fk_project' => array('type'=>'integer:Project:projet/class/project.class.php:1', 'label'=>'Project', 'enabled'=>'$conf->project->enabled', 'position'=>52, 'notnull'=>-1, 'visible'=>-1, 'index'=>1, 'css'=>'maxwidth500', 'picto'=>'project'),
-		'fk_user_recruiter' => array('type'=>'integer:User:user/class/user.class.php:status=1', 'label'=>'ResponsibleOfRecruitement', 'enabled'=>'1', 'position'=>54, 'notnull'=>1, 'visible'=>1, 'foreignkey'=>'user.rowid', 'css'=>'maxwidth500', 'csslist'=>'tdoverflowmax150', 'picto'=>'user'),
+		'fk_user_recruiter' => array('type'=>'integer:User:user/class/user.class.php:1:(statut:=:1)', 'label'=>'ResponsibleOfRecruitement', 'enabled'=>'1', 'position'=>54, 'notnull'=>1, 'visible'=>1, 'foreignkey'=>'user.rowid', 'css'=>'maxwidth500', 'csslist'=>'tdoverflowmax150', 'picto'=>'user'),
 		'email_recruiter' => array('type'=>'varchar(255)', 'label'=>'EmailRecruiter', 'enabled'=>'1', 'position'=>54, 'notnull'=>0, 'visible'=>-1, 'help'=>'ToUseAGenericEmail', 'picto'=>'email'),
-		'fk_user_supervisor' => array('type'=>'integer:User:user/class/user.class.php:t.statut = 1', 'label'=>'FutureManager', 'enabled'=>'1', 'position'=>55, 'notnull'=>0, 'visible'=>-1, 'foreignkey'=>'user.rowid', 'css'=>'maxwidth500', 'csslist'=>'tdoverflowmax150', 'picto'=>'user'),
+		'fk_user_supervisor' => array('type'=>'integer:User:user/class/user.class.php:1:(statut:=:1)', 'label'=>'FutureManager', 'enabled'=>'1', 'position'=>55, 'notnull'=>0, 'visible'=>-1, 'foreignkey'=>'user.rowid', 'css'=>'maxwidth500', 'csslist'=>'tdoverflowmax150', 'picto'=>'user'),
 		'fk_establishment' => array('type'=>'integer:Establishment:hrm/class/establishment.class.php', 'label'=>'Establishment', 'enabled'=>'$conf->hrm->enabled', 'position'=>56, 'notnull'=>0, 'visible'=>-1, 'foreignkey'=>'establishment.rowid',),
-		'fk_soc' => array('type'=>'integer:Societe:societe/class/societe.class.php:1:status=1 AND entity IN (__SHARED_ENTITIES__)', 'label'=>'WorkPlace', 'enabled'=>'$conf->societe->enabled', 'position'=>57, 'notnull'=>-1, 'visible'=>-1, 'css'=>'maxwidth500', 'index'=>1, 'help'=>"IfJobIsLocatedAtAPartner", 'picto'=>'company'),
+		'fk_soc' => array('type'=>'integer:Societe:societe/class/societe.class.php:1:((status:=:1) AND (entity:IN:__SHARED_ENTITIES__))', 'label'=>'WorkPlace', 'enabled'=>'$conf->societe->enabled', 'position'=>57, 'notnull'=>-1, 'visible'=>-1, 'css'=>'maxwidth500', 'index'=>1, 'help'=>"IfJobIsLocatedAtAPartner", 'picto'=>'company'),
 		'date_planned' => array('type'=>'date', 'label'=>'DateExpected', 'enabled'=>'1', 'position'=>60, 'notnull'=>0, 'visible'=>1,),
 		'remuneration_suggested' => array('type'=>'varchar(255)', 'label'=>'Remuneration', 'enabled'=>'1', 'position'=>62, 'notnull'=>0, 'visible'=>1,),
 		'description' => array('type'=>'html', 'label'=>'Description', 'enabled'=>'1', 'position'=>65, 'notnull'=>0, 'visible'=>3,),
@@ -376,7 +391,7 @@ class RecruitmentJobPosition extends CommonObject
 		$sql .= $this->getFieldList();
 		$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element.' as t';
 		if (isset($this->ismultientitymanaged) && $this->ismultientitymanaged == 1) {
-			$sql .= ' WHERE t.entity IN ('.getEntity($this->table_element).')';
+			$sql .= ' WHERE t.entity IN ('.getEntity($this->element).')';
 		} else {
 			$sql .= ' WHERE 1 = 1';
 		}
@@ -651,7 +666,7 @@ class RecruitmentJobPosition extends CommonObject
 	}
 
 	/**
-	 *	Close the commercial proposal
+	 *	Close the recruitment
 	 *
 	 *	@param      User	$user		Object user that close
 	 *	@param      int		$status		Statut
@@ -683,12 +698,6 @@ class RecruitmentJobPosition extends CommonObject
 			if ($status == self::STATUS_RECRUITED) {
 				$triggerName = 'RECRUITMENTJOB_CLOSE_RECRUITED';
 				$modelpdf = $this->model_pdf;
-
-				if ($result < 0) {
-					$this->error = $this->db->lasterror();
-					$this->db->rollback();
-					return -2;
-				}
 			}
 
 			if (empty($conf->global->MAIN_DISABLE_PDF_AUTOUPDATE)) {

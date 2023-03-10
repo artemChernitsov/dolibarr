@@ -48,20 +48,29 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
 $langs->loadLangs(array('bills', 'companies', 'donations', 'users'));
 
 $id = GETPOST('rowid') ?GETPOST('rowid', 'int') : GETPOST('id', 'int');
+$ref = GETPOST('ref', 'alpha');
 $action = GETPOST('action', 'aZ09');
 $cancel = GETPOST('cancel', 'alpha');
 $confirm = GETPOST('confirm', 'alpha');
-
+$socid = GETPOST('socid', 'int');
 $amount = price2num(GETPOST('amount', 'alphanohtml'), 'MT');
 $donation_date = dol_mktime(12, 0, 0, GETPOST('remonth'), GETPOST('reday'), GETPOST('reyear'));
 $projectid = (GETPOST('projectid') ? GETPOST('projectid', 'int') : 0);
 $public_donation = (int) GETPOST("public", 'int');
 
 $object = new Don($db);
-$extrafields = new ExtraFields($db);
+if ($id > 0 || $ref) {
+	$object->fetch($id, $ref);
+}
 
-// Security check
-$result = restrictedArea($user, 'don', $id);
+if (!empty($socid) && $socid > 0) {
+	$soc = new Societe($db);
+	if ($socid > 0) {
+		$soc->fetch($socid);
+	}
+}
+
+$extrafields = new ExtraFields($db);
 
 // fetch optionals attributes and labels
 $extrafields->fetch_name_optionals_label($object->table_element);
@@ -71,6 +80,11 @@ $search_array_options = $extrafields->getOptionalsFromPost($object->table_elemen
 $hookmanager->initHooks(array('doncard', 'globalcard'));
 
 $upload_dir = $conf->don->dir_output;
+
+
+// Security check
+$result = restrictedArea($user, 'don', $object->id);
+
 $permissiontoadd = $user->rights->don->creer;
 
 
@@ -722,7 +736,7 @@ if (!empty($id) && $action != 'edit') {
 				$morehtmlref .= '<input type="submit" class="button valignmiddle" value="'.$langs->trans("Modify").'">';
 				$morehtmlref .= '</form>';
 			} else {
-				$morehtmlref .= $form->form_project($_SERVER['PHP_SELF'].'?id='.$object->id, $object->socid, $object->fk_project, 'none', 0, 0, 0, 1);
+				$morehtmlref .= $form->form_project($_SERVER['PHP_SELF'].'?id='.$object->id, $object->socid, $object->fk_project, 'none', 0, 0, 0, 1, '', 'maxwidth300');
 			}
 		} else {
 			if (!empty($object->fk_project)) {

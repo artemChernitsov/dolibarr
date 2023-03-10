@@ -30,11 +30,10 @@
  *
  *  Note that you can add following constant to change behaviour of page
  *  MEMBER_NEWFORM_AMOUNT               Default amount for auto-subscribe form
- *  MEMBER_NEWFORM_EDITAMOUNT           0 or 1 = Amount can be edited
  *  MEMBER_MIN_AMOUNT                   Minimum amount
  *  MEMBER_NEWFORM_PAYONLINE            Suggest payment with paypal, paybox or stripe
  *  MEMBER_NEWFORM_DOLIBARRTURNOVER     Show field turnover (specific for dolibarr foundation)
- *  MEMBER_URL_REDIRECT_SUBSCRIPTION    Url to redirect once subscribe submitted
+ *  MEMBER_URL_REDIRECT_SUBSCRIPTION    Url to redirect once registration form has been submitted (hidden option, by default we just show a message on same page or redirect to the payment page)
  *  MEMBER_NEWFORM_FORCETYPE            Force type of member
  *  MEMBER_NEWFORM_FORCEMORPHY          Force nature of member (mor/phy)
  *  MEMBER_NEWFORM_FORCECOUNTRYCODE     Force country
@@ -45,9 +44,6 @@ if (!defined('NOLOGIN')) {
 }
 if (!defined('NOCSRFCHECK')) {
 	define("NOCSRFCHECK", 1); // We accept to go on this page from external web site.
-}
-if (!defined('NOIPCHECK')) {
-	define('NOIPCHECK', '1'); // Do not check IP defined into conf $dolibarr_main_restrict_ip
 }
 if (!defined('NOBROWSERNOTIF')) {
 	define('NOBROWSERNOTIF', '1');
@@ -73,13 +69,15 @@ require_once DOL_DOCUMENT_ROOT.'/adherents/class/adherent_type.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/cunits.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 
 // Init vars
+$backtopage = GETPOST('backtopage', 'alpha');
+$action = GETPOST('action', 'aZ09');
+
 $errmsg = '';
 $num = 0;
 $error = 0;
-$backtopage = GETPOST('backtopage', 'alpha');
-$action = GETPOST('action', 'aZ09');
 
 // Load translation files
 $langs->loadLangs(array("main", "members", "companies", "install", "other"));
@@ -199,7 +197,7 @@ if (empty($reshook) && $action == 'add') {
 			$error++;
 			$errmsg .= $langs->trans("ErrorFieldRequired", $langs->transnoentitiesnoconv("Login"))."<br>\n";
 		}
-		$sql = "SELECT login FROM ".MAIN_DB_PREFIX."adherent WHERE login='".$db->escape(GETPOST('login'))."'";
+		$sql = "SELECT login FROM ".MAIN_DB_PREFIX."adherent WHERE login = '".$db->escape(GETPOST('login'))."'";
 		$result = $db->query($sql);
 		if ($result) {
 			$num = $db->num_rows($result);
@@ -286,14 +284,16 @@ if (empty($reshook) && $action == 'add') {
 
 		$adh->ip = getUserRemoteIP();
 
-		$nb_post_max = getDolGlobalInt("MAIN_SECURITY_MAX_POST_ON_PUBLIC_PAGES_BY_IP_ADDRESS", 1000);
-
+		$nb_post_max = getDolGlobalInt("MAIN_SECURITY_MAX_POST_ON_PUBLIC_PAGES_BY_IP_ADDRESS", 200);
+		$now = dol_now();
+		$minmonthpost = dol_time_plus_duree($now, -1, "m");
 		// Calculate nb of post for IP
 		$nb_post_ip = 0;
 		if ($nb_post_max > 0) {	// Calculate only if there is a limit to check
 			$sql = "SELECT COUNT(ref) as nb_adh";
 			$sql .= " FROM ".MAIN_DB_PREFIX."adherent";
 			$sql .= " WHERE ip = '".$db->escape($adh->ip)."'";
+			$sql .= " AND datec > '".$db->idate($minmonthpost)."'";
 			$resql = $db->query($sql);
 			if ($resql) {
 				$num = $db->num_rows($resql);
@@ -430,7 +430,7 @@ if (empty($reshook) && $action == 'add') {
 				}
 
 				if (!empty($conf->global->MEMBER_NEWFORM_PAYONLINE) && $conf->global->MEMBER_NEWFORM_PAYONLINE != '-1') {
-					if (empty($conf->global->MEMBER_NEWFORM_EDITAMOUNT)) {			// If edition of amount not allowed
+					if (empty($adht->caneditamount)) {			// If edition of amount not allowed
 						// TODO Check amount is same than the amount required for the type of member or if not defined as the defeault amount into $conf->global->MEMBER_NEWFORM_AMOUNT
 						// It is not so important because a test is done on return of payment validation.
 					}
@@ -448,15 +448,6 @@ if (empty($reshook) && $action == 'add') {
 						$urlback .= '&entity='.((int) $entity);
 					}
 				}
-			}
-
-			if (!empty($backtopage)) {
-				$urlback = $backtopage;
-				dol_syslog("member ".$adh->ref." was created, we redirect to ".$urlback);
-			} elseif (!empty($conf->global->MEMBER_URL_REDIRECT_SUBSCRIPTION)) {
-				$urlback = $conf->global->MEMBER_URL_REDIRECT_SUBSCRIPTION;
-				// TODO Make replacement of __AMOUNT__, etc...
-				dol_syslog("member ".$adh->ref." was created, we redirect to ".$urlback);
 			} else {
 				$error++;
 				$errmsg .= join('<br>', $adh->errors);
@@ -476,7 +467,7 @@ if (empty($reshook) && $action == 'add') {
 }
 
 // Action called after a submitted was send and member created successfully
-// If MEMBER_URL_REDIRECT_SUBSCRIPTION is set to url we never go here because a redirect was done to this url.
+// If MEMBER_URL_REDIRECT_SUBSCRIPTION is set to an url, we never go here because a redirect was done to this url. Same if we ask to redirect to the payment page.
 // backtopage parameter with an url was set on member submit page, we never go here because a redirect was done to this url.
 
 if (empty($reshook) && $action == 'added') {
@@ -506,14 +497,14 @@ $extrafields->fetch_name_optionals_label($object->table_element); // fetch optio
 
 llxHeaderVierge($langs->trans("NewSubscription"));
 
-
+print '<br>';
 print load_fiche_titre($langs->trans("NewSubscription"), '', '', 0, 0, 'center');
 
 
 print '<div align="center">';
 print '<div id="divsubscribe">';
 
-print '<div class="center subscriptionformhelptext justify">';
+print '<div class="center subscriptionformhelptext opacitymedium justify">';
 if (!empty($conf->global->MEMBER_NEWFORM_TEXT)) {
 	print $langs->trans($conf->global->MEMBER_NEWFORM_TEXT)."<br>\n";
 } else {
@@ -686,7 +677,7 @@ if (!empty($conf->global->MEMBER_SKIP_TABLE) || !empty($conf->global->MEMBER_NEW
 	print '<tr><td>'.$langs->trans("Public").'</td><td><input type="checkbox" name="public"></td></tr>'."\n";
 
 	// Other attributes
-	$tpl_context = 'public'; // define template context to public
+	$parameters['tpl_context']='public';	// define template context to public
 	include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_add.tpl.php';
 
 	// Comments
@@ -773,10 +764,10 @@ if (!empty($conf->global->MEMBER_SKIP_TABLE) || !empty($conf->global->MEMBER_NEW
 			$amount = $conf->global->MEMBER_NEWFORM_AMOUNT;
 		}
 
-		if (!empty($conf->global->MEMBER_NEWFORM_EDITAMOUNT) || $caneditamount) {
+		if ($caneditamount) {
 			print '<input type="text" name="amount" id="amount" class="flat amount width50" value="'.$showedamount.'">';
 			print ' '.$langs->trans("Currency".$conf->currency).'<span class="opacitymedium"> – ';
-			print $amount>0? $langs->trans("AnyAmountWithAdvisedAmount", $amount, $langs->trans("Currency".$conf->currency)): $langs->trans("AnyAmountWithoutAdvisedAmount");
+			print $amount > 0 ? $langs->trans("AnyAmountWithAdvisedAmount", price($amount, 0, $langs, 1, -1, -1, $conf->currency)): $langs->trans("AnyAmountWithoutAdvisedAmount");
 			print '</span>';
 		} else {
 			print '<input type="hidden" name="amount" id="amount" class="flat amount" value="'.$showedamount.'">';
@@ -812,12 +803,14 @@ if (!empty($conf->global->MEMBER_SKIP_TABLE) || !empty($conf->global->MEMBER_NEW
 
 	$publiccounters = getDolGlobalString("MEMBER_COUNTERS_ARE_PUBLIC");
 
-	$sql = "SELECT d.rowid, d.libelle as label, d.subscription, d.amount, d.caneditamount, d.vote, d.note, d.duration, d.statut as status, d.morphy, COUNT(a.rowid) AS membercount";
+	$sql = "SELECT d.rowid, d.libelle as label, d.subscription, d.amount, d.caneditamount, d.vote, d.note, d.duration, d.statut as status, d.morphy,";
+	$sql .= " COUNT(a.rowid) AS membercount";
 	$sql .= " FROM ".MAIN_DB_PREFIX."adherent_type as d";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."adherent as a";
-	$sql .= " ON d.rowid = a.fk_adherent_type AND a.statut>0";
+	$sql .= " ON d.rowid = a.fk_adherent_type AND a.statut > 0";
 	$sql .= " WHERE d.entity IN (".getEntity('member_type').")";
-	$sql .= " AND d.statut=1 GROUP BY d.rowid";
+	$sql .= " AND d.statut=1";
+	$sql .= " GROUP BY d.rowid, d.libelle, d.subscription, d.amount, d.caneditamount, d.vote, d.note, d.duration, d.statut, d.morphy";
 
 	$result = $db->query($sql);
 	if ($result) {
@@ -839,7 +832,7 @@ if (!empty($conf->global->MEMBER_SKIP_TABLE) || !empty($conf->global->MEMBER_NEW
 
 		$i = 0;
 		while ($i < $num) {
-			$objp = $db->fetch_object($result);
+			$objp = $db->fetch_object($result);	// Load the member type and information on it
 
 			print '<tr class="oddeven">';
 			print '<td>'.dol_escape_htmltag($objp->label).'</td>';
@@ -849,7 +842,7 @@ if (!empty($conf->global->MEMBER_SKIP_TABLE) || !empty($conf->global->MEMBER_NEW
 			print '</td>';
 			print '<td class="center"><span class="amount nowrap">';
 			$displayedamount = max(intval($objp->amount), intval(getDolGlobalInt("MEMBER_MIN_AMOUNT")));
-			$caneditamount = !empty($conf->global->MEMBER_NEWFORM_EDITAMOUNT) || $objp->caneditamount;
+			$caneditamount = $objp->caneditamount;
 			if ($objp->subscription) {
 				if ($displayedamount > 0 || !$caneditamount) {
 					print $displayedamount.' '.strtoupper($conf->currency);

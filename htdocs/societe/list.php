@@ -113,6 +113,7 @@ $place = GETPOST('place', 'aZ09') ? GETPOST('place', 'aZ09') : '0'; // $place is
 
 $diroutputmassaction = $conf->societe->dir_output.'/temp/massgeneration/'.$user->id;
 
+// Load variable for pagination
 $limit = GETPOST('limit', 'int') ?GETPOST('limit', 'int') : $conf->liste_limit;
 $sortfield = GETPOST('sortfield', 'aZ09comma');
 $sortorder = GETPOST('sortorder', 'aZ09comma');
@@ -243,7 +244,7 @@ $arrayfields = array(
 	's.phone'=>array('label'=>"Phone", 'position'=>27, 'checked'=>1),
 	's.fax'=>array('label'=>"Fax", 'position'=>28, 'checked'=>0),
 	'typent.code'=>array('label'=>"ThirdPartyType", 'position'=>29, 'checked'=>$checkedtypetiers),
-	'staff.code'=>array('label'=>"Staff", 'position'=>31, 'checked'=>0),
+	'staff.code'=>array('label'=>"Workforce", 'position'=>31, 'checked'=>0),
 	's.siren'=>array('label'=>"ProfId1Short", 'position'=>40, 'checked'=>$checkedprofid1),
 	's.siret'=>array('label'=>"ProfId2Short", 'position'=>41, 'checked'=>$checkedprofid2),
 	's.ape'=>array('label'=>"ProfId3Short", 'position'=>42, 'checked'=>$checkedprofid3),
@@ -321,7 +322,8 @@ if ($action == "change") {	// Change customer for TakePOS
 }
 
 if (GETPOST('cancel', 'alpha')) {
-	$action = 'list'; $massaction = '';
+	$action = 'list';
+	$massaction = '';
 }
 if (!GETPOST('confirmmassaction', 'alpha') && $massaction != 'presend' && $massaction != 'confirm_presend') {
 	$massaction = '';
@@ -385,7 +387,7 @@ if (empty($reshook)) {
 	$objectlabel = 'ThirdParty';
 	$permissiontoread = $user->hasRight('societe', 'lire');
 	$permissiontodelete = $user->hasRight('societe', 'supprimer');
-	$permissiontoadd = $user->rights->societe->creer;
+	$permissiontoadd = $user->hasRight("societe", "creer");
 	$uploaddir = $conf->societe->dir_output;
 	include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
 
@@ -442,6 +444,9 @@ if ($type == 'f' && (empty($search_type) || ($search_type == '4'))) {
 	$title = $langs->trans("Suppliers");
 }
 
+$varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
+$selectedfields = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage); // This also change content of $arrayfields
+
 // Select every potentiels, and note each potentiels which fit in search parameters
 $tab_level = array();
 $sql = "SELECT code, label, sortorder";
@@ -488,6 +493,9 @@ if (!empty($extrafields->attributes[$object->table_element]['label'])) {
 $parameters = array();
 $reshook = $hookmanager->executeHooks('printFieldListSelect', $parameters, $object, $action); // Note that $action and $object may have been modified by hook
 $sql .= $hookmanager->resPrint;
+
+$sqlfields = $sql; // $sql fields to remove for count total
+
 $sql .= " FROM ".MAIN_DB_PREFIX."societe as s";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s2 ON s.parent = s2.rowid";
 if (!empty($extrafields->attributes[$object->table_element]['label']) && is_array($extrafields->attributes[$object->table_element]['label']) && count($extrafields->attributes[$object->table_element]['label'])) {
@@ -595,11 +603,16 @@ if (strlen($search_cti)) {
 if ($search_id > 0) {
 	$sql .= natural_search("s.rowid", $search_id, 1);
 }
-if ($search_nom) {
-	$sql .= natural_search("s.nom", $search_nom);
-}
-if ($search_alias) {
-	$sql .= natural_search("s.name_alias", $search_alias);
+if (empty($arrayfields['s.name_alias']['checked']) && $search_nom) {
+	$sql .= natural_search(array("s.nom", "s.name_alias"), $search_nom);
+} else {
+	if ($search_nom) {
+		$sql .= natural_search("s.nom", $search_nom);
+	}
+
+	if ($search_alias) {
+		$sql .= natural_search("s.name_alias", $search_alias);
+	}
 }
 if ($search_nom_only) {
 	$sql .= natural_search("s.nom", $search_nom_only);
@@ -723,14 +736,9 @@ $sql .= $hookmanager->resPrint;
 // Count total nb of records with no order and no limits
 $nbtotalofrecords = '';
 if (empty($conf->global->MAIN_DISABLE_FULL_SCANLIST)) {
-	/*$resql = $db->query($sql);
-	if ($resql) {
-		$nbtotalofrecords = $db->num_rows($resql);
-	} else {
-		dol_print_error($db);
-	}*/
 	/* The fast and low memory method to get and count full list converts the sql into a sql count */
-	$sqlforcount = preg_replace('/^SELECT[a-zA-Z0-9\._\s\(\),=<>\:\-\']+\sFROM/Ui', 'SELECT COUNT(*) as nbtotalofrecords FROM', $sql);
+	$sqlforcount = preg_replace('/^'.preg_quote($sqlfields, '/').'/', 'SELECT COUNT(*) as nbtotalofrecords', $sql);
+	$sqlforcount = preg_replace('/GROUP BY .*$/', '', $sqlforcount);
 	$resql = $db->query($sqlforcount);
 	if ($resql) {
 		$objforcount = $db->fetch_object($resql);
@@ -763,6 +771,7 @@ $num = $db->num_rows($resql);
 
 $arrayofselected = is_array($toselect) ? $toselect : array();
 
+// Direct jump if only one record found
 if ($num == 1 && !empty($conf->global->MAIN_SEARCH_DIRECT_OPEN_IF_ONLY_ONE) && ($search_all != '' || $search_cti != '') && $action != 'list') {
 	$obj = $db->fetch_object($resql);
 	$id = $obj->rowid;
@@ -924,23 +933,23 @@ $arrayofmassactions = array(
 	//'builddoc'=>img_picto('', 'pdf', 'class="pictofixedwidth"').$langs->trans("PDFMerge"),
 );
 //if($user->rights->societe->creer) $arrayofmassactions['createbills']=$langs->trans("CreateInvoiceForThisCustomer");
-if (isModEnabled('category') && $user->rights->societe->creer) {
+if (isModEnabled('category') && $user->hasRight("societe", "creer")) {
 	$arrayofmassactions['preaffecttag'] = img_picto('', 'category', 'class="pictofixedwidth"').$langs->trans("AffectTag");
 }
-if ($user->rights->societe->creer) {
-	$arrayofmassactions['preenable'] = img_picto('', 'stop-circle', 'class="pictofixedwidth"').$langs->trans("SetToEnabled");
+if ($user->hasRight("societe", "creer")) {
+	$arrayofmassactions['preenable'] = img_picto('', 'stop-circle', 'class="pictofixedwidth"').$langs->trans("SetToStatus", $object->LibStatut($object::STATUS_INACTIVITY));
 }
-if ($user->rights->societe->creer) {
-	$arrayofmassactions['predisable'] = img_picto('', 'stop-circle', 'class="pictofixedwidth"').$langs->trans("SetToDisabled");
+if ($user->hasRight("societe", "creer")) {
+	$arrayofmassactions['predisable'] = img_picto('', 'stop-circle', 'class="pictofixedwidth"').$langs->trans("SetToStatus", $object->LibStatut($object::STATUS_CEASED));
 }
-if ($user->rights->societe->creer) {
+if ($user->hasRight("societe", "creer")) {
 	$arrayofmassactions['presetcommercial'] = img_picto('', 'user', 'class="pictofixedwidth"').$langs->trans("AllocateCommercial");
-}
-if (GETPOST('nomassaction', 'int') || in_array($massaction, array('presend', 'predelete', 'preaffecttag', 'preenable', 'preclose'))) {
-	$arrayofmassactions = array();
 }
 if ($user->hasRight('societe', 'supprimer')) {
 	$arrayofmassactions['predelete'] = img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans("Delete");
+}
+if (GETPOST('nomassaction', 'int') || in_array($massaction, array('presend', 'predelete', 'preaffecttag', 'preenable', 'preclose'))) {
+	$arrayofmassactions = array();
 }
 $massactionbutton = $form->selectMassAction('', $arrayofmassactions);
 
@@ -971,8 +980,8 @@ if ($contextpage != 'poslist') {
 	if (!empty($socid)) {
 		$url .= '&socid='.$socid;
 	}
-	$newcardbutton = dolGetButtonTitle($langs->trans($label), '', 'fa fa-plus-circle', $url, '', $user->rights->societe->creer);
-} elseif ($user->rights->societe->creer) {
+	$newcardbutton = dolGetButtonTitle($langs->trans($label), '', 'fa fa-plus-circle', $url, '', $user->hasRight("societe", "creer"));
+} elseif ($user->hasRight("societe", "creer")) {
 	$url = DOL_URL_ROOT.'/societe/card.php?action=create&type=t&contextpage=poslist&optioncss=print&backtopage='.urlencode($_SERVER["PHP_SELF"].'?type=t&contextpage=poslist&nomassaction=1&optioncss=print&place='.$place);
 	$label = 'MenuNewCustomer';
 	$newcardbutton .= dolGetButtonTitle($langs->trans($label), '', 'fa fa-plus-circle', $url);
@@ -1004,6 +1013,7 @@ foreach (array(1, 2, 3, 4, 5, 6) as $key) {
 	}
 }
 
+// Add code for pre mass action (confirmation or email presend form)
 $topicmail = "Information";
 $modelmail = "thirdparty";
 $objecttmp = new Societe($db);
@@ -1020,7 +1030,7 @@ if ($search_all) {
 // Filter on categories
 $moreforfilter = '';
 if (empty($type) || $type == 'c' || $type == 'p') {
-	if (isModEnabled('categorie') && $user->rights->categorie->lire) {
+	if (isModEnabled('categorie') && $user->hasRight("categorie", "lire")) {
 		require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 		$moreforfilter .= '<div class="divsearchfield">';
 		$tmptitle = $langs->trans('Categories');
@@ -1031,7 +1041,7 @@ if (empty($type) || $type == 'c' || $type == 'p') {
 }
 
 if (empty($type) || $type == 'f') {
-	if (isModEnabled("fournisseur") && isModEnabled('categorie') && $user->rights->categorie->lire) {
+	if (isModEnabled("fournisseur") && isModEnabled('categorie') && $user->hasRight("categorie", "lire")) {
 		require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 		$moreforfilter .= '<div class="divsearchfield">';
 		$tmptitle = $langs->trans('Categories');
@@ -1042,7 +1052,7 @@ if (empty($type) || $type == 'f') {
 }
 
 // If the user can view prospects other than his'
-if ($user->rights->societe->client->voir || $socid) {
+if ($user->hasRight("societe", "client", "voir") || $socid) {
 	$moreforfilter .= '<div class="divsearchfield">';
 	$tmptitle = $langs->trans('SalesRepresentatives');
 	$moreforfilter .= img_picto($tmptitle, 'user', 'class="pictofixedwidth"');
@@ -1301,7 +1311,7 @@ if (!empty($arrayfields['s.tms']['checked'])) {
 // Status
 if (!empty($arrayfields['s.status']['checked'])) {
 	print '<td class="liste_titre center minwidth75imp">';
-	print $form->selectarray('search_status', array('0'=>$langs->trans('ActivityCeased'), '1'=>$langs->trans('InActivity')), $search_status, 1, 0, 0, '', 0, 0, 0, '', '', 1);
+	print $form->selectarray('search_status', array('0'=>$langs->trans('ActivityCeased'), '1'=>$langs->trans('InActivity')), $search_status, 1, 0, 0, '', 0, 0, 0, '', 'search_status minwidth75imp maxwidth125 onrightofpage', 1);
 	print '</td>';
 }
 if (!empty($arrayfields['s.import_key']['checked'])) {

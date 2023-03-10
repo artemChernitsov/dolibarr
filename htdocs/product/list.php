@@ -621,6 +621,7 @@ if (empty($conf->global->MAIN_DISABLE_FULL_SCANLIST)) {
 		$page = 0;
 		$offset = 0;
 	}
+	$db->free($resql);
 }
 
 // Complete request and execute it with limit
@@ -1142,12 +1143,12 @@ if (!empty($arrayfields['p.tms']['checked'])) {
 }
 if (!empty($arrayfields['p.tosell']['checked'])) {
 	print '<td class="liste_titre center">';
-	print $form->selectarray('search_tosell', array('0'=>$langs->trans('ProductStatusNotOnSellShort'), '1'=>$langs->trans('ProductStatusOnSellShort')), $search_tosell, 1);
+	print $form->selectarray('search_tosell', array('0'=>$langs->trans('ProductStatusNotOnSellShort'), '1'=>$langs->trans('ProductStatusOnSellShort')), $search_tosell, 1, 0, 0, '', 0, 0, 0, '', 'search_status width100 onrightofpage');
 	print '</td >';
 }
 if (!empty($arrayfields['p.tobuy']['checked'])) {
 	print '<td class="liste_titre center">';
-	print $form->selectarray('search_tobuy', array('0'=>$langs->trans('ProductStatusNotOnBuyShort'), '1'=>$langs->trans('ProductStatusOnBuyShort')), $search_tobuy, 1);
+	print $form->selectarray('search_tobuy', array('0'=>$langs->trans('ProductStatusNotOnBuyShort'), '1'=>$langs->trans('ProductStatusOnBuyShort')), $search_tobuy, 1, 0, 0, '', 0, 0, 0, '', 'search_status width100 onrightofpage');
 	print '</td>';
 }
 if (empty($conf->global->MAIN_CHECKBOX_LEFT_COLUMN)) {
@@ -1267,7 +1268,7 @@ if (!empty($arrayfields['p.stock']['checked'])) {
 	print_liste_field_titre($arrayfields['p.stock']['label'], $_SERVER["PHP_SELF"], "p.stock", "", $param, '', $sortfield, $sortorder, 'right ');
 }
 if (!empty($arrayfields['stock_virtual']['checked'])) {
-	print_liste_field_titre($arrayfields['stock_virtual']['label'], $_SERVER["PHP_SELF"], "", "", $param, '', $sortfield, $sortorder, 'right ');
+	print_liste_field_titre($arrayfields['stock_virtual']['label'], $_SERVER["PHP_SELF"], "", "", $param, '', $sortfield, $sortorder, 'right ', 'VirtualStockDesc');
 }
 if (!empty($arrayfields['p.tobatch']['checked'])) {
 	print_liste_field_titre($arrayfields['p.tobatch']['label'], $_SERVER["PHP_SELF"], "p.tobatch", "", $param, '', $sortfield, $sortorder, 'center ');
@@ -1827,7 +1828,7 @@ while ($i < min($num, $limit)) {
 				print img_warning($langs->trans("StockLowerThanLimit", $obj->seuil_stock_alerte)).' ';
 			}
 			if ($usercancreadprice) {
-				print price(price2num($product_static->stock_reel, 'MS'));
+				print price(price2num($product_static->stock_reel, 'MS'), 0, $langs, 1, 0);
 			}
 		}
 		print '</td>';
@@ -1843,7 +1844,7 @@ while ($i < min($num, $limit)) {
 				print img_warning($langs->trans("StockLowerThanLimit", $obj->seuil_stock_alerte)).' ';
 			}
 			if ($usercancreadprice) {
-				print price(price2num($product_static->stock_theorique, 'MS'));
+				print price(price2num($product_static->stock_theorique, 'MS'), 0, $langs, 1, 0);
 			}
 		}
 		print '</td>';

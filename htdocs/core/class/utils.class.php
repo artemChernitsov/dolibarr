@@ -34,6 +34,9 @@ class Utils
 	 */
 	public $db;
 
+	public $error;
+	public $errors;
+
 	public $output; // Used by Cron method to return message
 	public $result; // Used by Cron method to return data
 
@@ -414,13 +417,16 @@ class Utils
 				}
 
 
-				// TODO Replace with Utils->executeCLI() function but
-				// we must first introduce the variant with $lowmemorydump into this method.
 				if ($execmethod == 1) {
 					$output_arr = array();
 					$retval = null;
 
 					exec($fullcommandclear, $output_arr, $retval);
+					// TODO Replace this exec with Utils->executeCLI() function.
+					// We must check that the case for $lowmemorydump works too...
+					//$utils = new Utils($db);
+					//$outputfile = $conf->admin->dir_temp.'/dump.tmp';
+					//$utils->executeCLI($fullcommandclear, $outputfile, 0);
 
 					if ($retval != 0) {
 						$langs->load("errors");
@@ -435,6 +441,8 @@ class Utils
 								if ($i == 1 && preg_match('/Warning.*Using a password/i', $read)) {
 									continue;
 								}
+								// Now check into the result file, that the file end with "-- Dump completed"
+								// This is possible only if $output_arr is the clear dump file, so not possible with $lowmemorydump set because file is already compressed.
 								if (!$lowmemorydump) {
 									fwrite($handle, $read.($execmethod == 2 ? '' : "\n"));
 									if (preg_match('/'.preg_quote('-- Dump completed', '/').'/i', $read)) {
@@ -664,11 +672,11 @@ class Utils
 	 * Execute a CLI command.
 	 *
 	 * @param 	string	$command			Command line to execute.
-	 * 										Warning: The command line is sanitize so can't contains any redirection char '>'. Use param $redirectionfile if you need it.
+	 * 										Warning: The command line is sanitize by escapeshellcmd(), except if $noescapecommand set, so can't contains any redirection char '>'. Use param $redirectionfile if you need it.
 	 * @param 	string	$outputfile			A path for an output file (used only when method is 2). For example: $conf->admin->dir_temp.'/out.tmp';
 	 * @param	int		$execmethod			0=Use default method (that is 1 by default), 1=Use the PHP 'exec', 2=Use the 'popen' method
 	 * @param	string	$redirectionfile	If defined, a redirection of output to this file is added.
-	 * @param	int		$noescapecommand	1=Do not escape command. Warning: Using this parameter needs you alreay have sanitized the command. if not, it will lead to security vulnerability.
+	 * @param	int		$noescapecommand	1=Do not escape command. Warning: Using this parameter needs you alreay have sanitized the $command parameter. If not, it will lead to security vulnerability.
 	 * 										This parameter is provided for backward compatibility with external modules. Always use 0 in core.
 	 * @param	string	$redirectionfileerr	If defined, a redirection of error is added to this file instead of to channel 1.
 	 * @return	array						array('result'=>...,'output'=>...,'error'=>...). result = 0 means OK.

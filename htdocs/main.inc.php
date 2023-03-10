@@ -80,7 +80,7 @@ function realCharForNumericEntities($matches)
  * Warning: Such a protection can't be enough. It is not reliable as it will always be possible to bypass this. Good protection can
  * only be guaranted by escaping data during output.
  *
- * @param		string		$val		Brut value found into $_GET, $_POST or PHP_SELF
+ * @param		string		$val		Brute value found into $_GET, $_POST or PHP_SELF
  * @param		string		$type		0=POST, 1=GET, 2=PHP_SELF, 3=GET without sql reserved keywords (the less tolerant test)
  * @return		int						>0 if there is an injection, 0 if none
  */
@@ -89,18 +89,22 @@ function testSqlAndScriptInject($val, $type)
 	// Decode string first because a lot of things are obfuscated by encoding or multiple encoding.
 	// So <svg o&#110;load='console.log(&quot;123&quot;)' become <svg onload='console.log(&quot;123&quot;)'
 	// So "&colon;&apos;" become ":'" (due to ENT_HTML5)
+	// So "&Tab;&NewLine;" become ""
+	// So "&lpar;&rpar;" become "()"
+
 	// Loop to decode until no more things to decode.
 	//print "before decoding $val\n";
 	do {
 		$oldval = $val;
-		$val = html_entity_decode($val, ENT_QUOTES | ENT_HTML5);
-		//$val = preg_replace_callback('/&#(x?[0-9][0-9a-f]+;?)/i', 'realCharForNumericEntities', $val); // Sometimes we have entities without the ; at end so html_entity_decode does not work but entities is still interpreted by browser.
+		$val = html_entity_decode($val, ENT_QUOTES | ENT_HTML5);	// Decode '&colon;', '&apos;', '&Tab;', '&NewLine', ...
+		// Sometimes we have entities without the ; at end so html_entity_decode does not work but entities is still interpreted by browser.
 		$val = preg_replace_callback('/&#(x?[0-9][0-9a-f]+;?)/i', function ($m) {
+			// Decode '&#110;', ...
 			return realCharForNumericEntities($m); }, $val);
 
 		// We clean html comments because some hacks try to obfuscate evil strings by inserting HTML comments. Example: on<!-- -->error=alert(1)
 		$val = preg_replace('/<!--[^>]*-->/', '', $val);
-		$val = preg_replace('/[\r\n]/', '', $val);
+		$val = preg_replace('/[\r\n\t]/', '', $val);
 	} while ($oldval != $val);
 	//print "type = ".$type." after decoding: ".$val."\n";
 
@@ -123,11 +127,12 @@ function testSqlAndScriptInject($val, $type)
 
 	// For SQL Injection (only GET are used to scan for such injection strings)
 	if ($type == 1 || $type == 3) {
-		$inj += preg_match('/delete\s+from/i', $val);
-		$inj += preg_match('/create\s+table/i', $val);
-		$inj += preg_match('/insert\s+into/i', $val);
-		$inj += preg_match('/select\s+from/i', $val);
-		$inj += preg_match('/into\s+(outfile|dumpfile)/i', $val);
+		// Note the \s+ is replaced into \s* because some spaces may have been modified in previous loop
+		$inj += preg_match('/delete\s*from/i', $val);
+		$inj += preg_match('/create\s*table/i', $val);
+		$inj += preg_match('/insert\s*into/i', $val);
+		$inj += preg_match('/select\s*from/i', $val);
+		$inj += preg_match('/into\s*(outfile|dumpfile)/i', $val);
 		$inj += preg_match('/user\s*\(/i', $val); // avoid to use function user() or mysql_user() that return current database login
 		$inj += preg_match('/information_schema/i', $val); // avoid to use request that read information_schema database
 		$inj += preg_match('/<svg/i', $val); // <svg can be allowed in POST
@@ -135,7 +140,8 @@ function testSqlAndScriptInject($val, $type)
 		$inj += preg_match('/union.+select/i', $val);
 	}
 	if ($type == 3) {
-		$inj += preg_match('/select|update|delete|truncate|replace|group\s+by|concat|count|from|union/i', $val);
+		// Note the \s+ is replaced into \s* because some spaces may have been modified in previous loop
+		$inj += preg_match('/select|update|delete|truncate|replace|group\s*by|concat|count|from|union/i', $val);
 	}
 	if ($type != 2) {	// Not common key strings, so we can check them both on GET and POST
 		$inj += preg_match('/updatexml\(/i', $val);
@@ -167,20 +173,24 @@ function testSqlAndScriptInject($val, $type)
 	$inj += preg_match('/on(lostpointercapture|offline|online|pagehide|pageshow)\s*=/i', $val);
 	$inj += preg_match('/on(paste|pause|play|playing|progress|ratechange|reset|resize|scroll|search|seeked|seeking|show|stalled|start|submit|suspend)\s*=/i', $val);
 	$inj += preg_match('/on(timeupdate|toggle|unload|volumechange|waiting|wheel)\s*=/i', $val);
+	// More not into the previous list
+	$inj += preg_match('/on(repeat|begin|finish|beforeinput)\s*=/i', $val);
 
 	// We refuse html into html because some hacks try to obfuscate evil strings by inserting HTML into HTML. Example: <img on<a>error=alert(1) to bypass test on onerror
 	$tmpval = preg_replace('/<[^<]+>/', '', $val);
 	// List of dom events is on https://www.w3schools.com/jsref/dom_obj_event.asp and https://developer.mozilla.org/en-US/docs/Web/API/GlobalEventHandlers
-	$inj += preg_match('/on(mouse|drag|key|load|touch|pointer|select|transition)([a-z]*)\s*=/i', $val); // onmousexxx can be set on img or any html tag like <img title='...' onmouseover=alert(1)>
+	$inj += preg_match('/on(mouse|drag|key|load|touch|pointer|select|transition)([a-z]*)\s*=/i', $tmpval); // onmousexxx can be set on img or any html tag like <img title='...' onmouseover=alert(1)>
 	$inj += preg_match('/on(abort|afterprint|animation|auxclick|beforecopy|beforecut|beforeprint|beforeunload|blur|cancel|canplay|canplaythrough|change|click|close|contextmenu|cuechange|copy|cut)\s*=/i', $tmpval);
 	$inj += preg_match('/on(dblclick|drop|durationchange|emptied|end|ended|error|focus|focusin|focusout|formdata|gotpointercapture|hashchange|input|invalid)\s*=/i', $tmpval);
 	$inj += preg_match('/on(lostpointercapture|offline|online|pagehide|pageshow)\s*=/i', $tmpval);
 	$inj += preg_match('/on(paste|pause|play|playing|progress|ratechange|reset|resize|scroll|search|seeked|seeking|show|stalled|start|submit|suspend)\s*=/i', $tmpval);
 	$inj += preg_match('/on(timeupdate|toggle|unload|volumechange|waiting|wheel)\s*=/i', $tmpval);
+	// More not into the previous list
+	$inj += preg_match('/on(repeat|begin|finish|beforeinput)\s*=/i', $tmpval);
 
 	//$inj += preg_match('/on[A-Z][a-z]+\*=/', $val);   // To lock event handlers onAbort(), ...
 	$inj += preg_match('/&#58;|&#0000058|&#x3A/i', $val); // refused string ':' encoded (no reason to have it encoded) to lock 'javascript:...'
-	$inj += preg_match('/javascript\s*:/i', $val);
+	$inj += preg_match('/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i', $val);
 	$inj += preg_match('/vbscript\s*:/i', $val);
 	// For XSS Injection done by adding javascript closing html tags like with onmousemove, etc... (closing a src or href tag with not cleaned param)
 	if ($type == 1 || $type == 3) {
@@ -226,6 +236,10 @@ function analyseVarsForSqlAndScriptsInjection(&$var, $type)
 	}
 }
 
+// To disable the WAF for GET and POST and PHP_SELF, uncomment this
+//define('NOSCANPHPSELFFORINJECTION', 1);
+//define('NOSCANGETFORINJECTION', 1);
+//define('NOSCANPOSTFORINJECTION', 1);
 
 // Check consistency of NOREQUIREXXX DEFINES
 if ((defined('NOREQUIREDB') || defined('NOREQUIRETRAN')) && !defined('NOREQUIREMENU')) {
@@ -238,7 +252,7 @@ if (defined('NOREQUIREUSER') && !defined('NOREQUIREMENU')) {
 }
 
 // Sanity check on URL
-if (!empty($_SERVER["PHP_SELF"])) {
+if (!defined('NOSCANPHPSELFFORINJECTION') && !empty($_SERVER["PHP_SELF"])) {
 	$morevaltochecklikepost = array($_SERVER["PHP_SELF"]);
 	analyseVarsForSqlAndScriptsInjection($morevaltochecklikepost, 2);
 }
@@ -259,7 +273,6 @@ if (!defined('NOSCANPOSTFORINJECTION')) {
 if (!empty($_SERVER['DOCUMENT_ROOT']) && substr($_SERVER['DOCUMENT_ROOT'], -6) !== 'htdocs') {
 	set_include_path($_SERVER['DOCUMENT_ROOT'].'/htdocs');
 }
-
 
 // Include the conf.php and functions.lib.php and security.lib.php. This defined the constants like DOL_DOCUMENT_ROOT, DOL_DATA_ROOT, DOL_URL_ROOT...
 require_once 'filefunc.inc.php';
@@ -492,7 +505,7 @@ if ((!empty($conf->global->MAIN_VERSION_LAST_UPGRADE) && ($conf->global->MAIN_VE
 
 // Creation of a token against CSRF vulnerabilities
 if (!defined('NOTOKENRENEWAL') && !defined('NOSESSION')) {
-	// No token renewal on .css.php, .js.php and .json.php
+	// No token renewal on .css.php, .js.php and .json.php (even if the NOTOKENRENEWAL was not provided)
 	if (!preg_match('/\.(css|js|json)\.php$/', $_SERVER["PHP_SELF"])) {
 		// Rolling token at each call ($_SESSION['token'] contains token of previous page)
 		if (isset($_SESSION['newtoken'])) {
@@ -630,11 +643,15 @@ $modulepart = explode("/", $_SERVER["PHP_SELF"]);
 if (is_array($modulepart) && count($modulepart) > 0) {
 	foreach ($conf->modules as $module) {
 		if (in_array($module, $modulepart)) {
-			$conf->modulepart = $module;
+			$modulepart = $module;
 			break;
 		}
 	}
 }
+if (is_array($modulepart)) {
+	$modulepart = '';
+}
+
 
 /*
  * Phase authentication / login
@@ -962,7 +979,7 @@ if (!defined('NOLOGIN')) {
 			// Hooks on failed login
 			$action = '';
 			$hookmanager->initHooks(array('login'));
-			$parameters = array('dol_authmode'=>$dol_authmode, 'dol_loginmesg'=>$_SESSION["dol_loginmesg"]);
+			$parameters = array('dol_authmode' => (isset($dol_authmode) ? $dol_authmode : ''), 'dol_loginmesg' => $_SESSION["dol_loginmesg"]);
 			$reshook = $hookmanager->executeHooks('afterLoginFailed', $parameters, $user, $action); // Note that $action and $object may have been modified by some hooks
 			if ($reshook < 0) {
 				$error++;
@@ -985,7 +1002,7 @@ if (!defined('NOLOGIN')) {
 			$hookmanager->initHooks(array('main'));
 
 			// Code for search criteria persistence.
-			if (!empty($_GET['save_lastsearch_values'])) {    // We must use $_GET here
+			if (!empty($_GET['save_lastsearch_values']) && !empty($_SERVER["HTTP_REFERER"])) {    // We must use $_GET here
 				$relativepathstring = preg_replace('/\?.*$/', '', $_SERVER["HTTP_REFERER"]);
 				$relativepathstring = preg_replace('/^https?:\/\/[^\/]*/', '', $relativepathstring); // Get full path except host server
 				// Clean $relativepathstring
@@ -1445,13 +1462,21 @@ function top_httphead($contenttype = 'text/html', $forcenocache = 0)
 	// X-XSS-Protection
 	//header("X-XSS-Protection: 1");      		// XSS filtering protection of some browsers (note: use of Content-Security-Policy is more efficient). Disabled as deprecated.
 
-	// Content-Security-Policy
-	if (!defined('MAIN_SECURITY_FORCECSP')) {
+	// Content-Security-Policy-Report-Only
+	if (!defined('MAIN_SECURITY_FORCECSPRO')) {
 		// If CSP not forced from the page
 
 		// A default security policy that keep usage of js external component like ckeditor, stripe, google, working
-		//	$contentsecuritypolicy = "font-src *; img-src *; style-src * 'unsafe-inline' 'unsafe-eval'; default-src 'self' *.stripe.com 'unsafe-inline' 'unsafe-eval'; script-src 'self' *.stripe.com 'unsafe-inline' 'unsafe-eval'; frame-src 'self' *.stripe.com; connect-src 'self';";
-		$contentsecuritypolicy = getDolGlobalString('MAIN_SECURITY_FORCECSP');
+		// For example: to restrict to only local resources, except for css (cloudflare+google), and js (transifex + google tags) and object/iframe (youtube)
+		// default-src 'self'; style-src: https://cdnjs.cloudflare.com https://fonts.googleapis.com; script-src: https://cdn.transifex.com https://www.googletagmanager.com; object-src https://youtube.com; frame-src https://youtube.com; img-src: *;
+		// For example, to restrict everything to itself except img that can be on other servers:
+		// default-src 'self'; img-src *;
+		// Pre-existing site that uses too much js code to fix but wants to ensure resources are loaded only over https and disable plugins:
+		// default-src https: 'unsafe-inline' 'unsafe-eval'; object-src 'none'
+		//
+		// $contentsecuritypolicy = "frame-ancestors 'self'; img-src * data:; font-src *; default-src 'self' 'unsafe-inline' 'unsafe-eval' *.paypal.com *.stripe.com *.google.com *.googleapis.com *.google-analytics.com *.googletagmanager.com;";
+		// $contentsecuritypolicy = "frame-ancestors 'self'; img-src * data:; font-src *; default-src *; script-src 'self' 'unsafe-inline' *.paypal.com *.stripe.com *.google.com *.googleapis.com *.google-analytics.com *.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self';";
+		$contentsecuritypolicy = getDolGlobalString('MAIN_SECURITY_FORCECSPRO');
 
 		if (!is_object($hookmanager)) {
 			include_once DOL_DOCUMENT_ROOT.'/core/class/hookmanager.class.php';
@@ -1459,7 +1484,7 @@ function top_httphead($contenttype = 'text/html', $forcenocache = 0)
 		}
 		$hookmanager->initHooks(array("main"));
 
-		$parameters = array('contentsecuritypolicy'=>$contentsecuritypolicy);
+		$parameters = array('contentsecuritypolicy'=>$contentsecuritypolicy, 'mode'=>'reportonly');
 		$result = $hookmanager->executeHooks('setContentSecurityPolicy', $parameters); // Note that $action and $object may have been modified by some hooks
 		if ($result > 0) {
 			$contentsecuritypolicy = $hookmanager->resPrint; // Replace CSP
@@ -1468,14 +1493,43 @@ function top_httphead($contenttype = 'text/html', $forcenocache = 0)
 		}
 
 		if (!empty($contentsecuritypolicy)) {
-			// For example, to restrict 'script', 'object', 'frames' or 'img' to some domains:
-			// script-src https://api.google.com https://anotherhost.com; object-src https://youtube.com; frame-src https://youtube.com; img-src: https://static.example.com
-			// For example, to restrict everything to one domain, except 'object', ...:
-			// default-src https://cdn.example.net; object-src 'none'
-			// For example, to restrict everything to itself except img that can be on other servers:
-			// default-src 'self'; img-src *;
-			// Pre-existing site that uses too much js code to fix but wants to ensure resources are loaded only over https and disable plugins:
-			// default-src https: 'unsafe-inline' 'unsafe-eval'; object-src 'none'
+			header("Content-Security-Policy-Report-Only: ".$contentsecuritypolicy);
+		}
+	} else {
+		header("Content-Security-Policy: ".constant('MAIN_SECURITY_FORCECSPRO'));
+	}
+
+	// Content-Security-Policy
+	if (!defined('MAIN_SECURITY_FORCECSP')) {
+		// If CSP not forced from the page
+
+		// A default security policy that keep usage of js external component like ckeditor, stripe, google, working
+		// For example: to restrict to only local resources, except for css (cloudflare+google), and js (transifex + google tags) and object/iframe (youtube)
+		// default-src 'self'; style-src: https://cdnjs.cloudflare.com https://fonts.googleapis.com; script-src: https://cdn.transifex.com https://www.googletagmanager.com; object-src https://youtube.com; frame-src https://youtube.com; img-src: *;
+		// For example, to restrict everything to itself except img that can be on other servers:
+		// default-src 'self'; img-src *;
+		// Pre-existing site that uses too much js code to fix but wants to ensure resources are loaded only over https and disable plugins:
+		// default-src https: 'unsafe-inline' 'unsafe-eval'; object-src 'none'
+		//
+		// $contentsecuritypolicy = "frame-ancestors 'self'; img-src * data:; font-src *; default-src 'self' 'unsafe-inline' 'unsafe-eval' *.paypal.com *.stripe.com *.google.com *.googleapis.com *.google-analytics.com *.googletagmanager.com;";
+		// $contentsecuritypolicy = "frame-ancestors 'self'; img-src * data:; font-src *; default-src *; script-src 'self' 'unsafe-inline' *.paypal.com *.stripe.com *.google.com *.googleapis.com *.google-analytics.com *.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self';";
+		$contentsecuritypolicy = getDolGlobalString('MAIN_SECURITY_FORCECSP');
+
+		if (!is_object($hookmanager)) {
+			include_once DOL_DOCUMENT_ROOT.'/core/class/hookmanager.class.php';
+			$hookmanager = new HookManager($db);
+		}
+		$hookmanager->initHooks(array("main"));
+
+		$parameters = array('contentsecuritypolicy'=>$contentsecuritypolicy, 'mode'=>'active');
+		$result = $hookmanager->executeHooks('setContentSecurityPolicy', $parameters); // Note that $action and $object may have been modified by some hooks
+		if ($result > 0) {
+			$contentsecuritypolicy = $hookmanager->resPrint; // Replace CSP
+		} else {
+			$contentsecuritypolicy .= $hookmanager->resPrint; // Concat CSP
+		}
+
+		if (!empty($contentsecuritypolicy)) {
 			header("Content-Security-Policy: ".$contentsecuritypolicy);
 		}
 	} else {
@@ -1548,7 +1602,8 @@ function top_htmlhead($head, $title = '', $disablejs = 0, $disablehead = 0, $arr
 		print '<meta name="robots" content="'.($disablenoindex ? 'index' : 'noindex').($disablenofollow ? ',follow' : ',nofollow').'">'."\n"; // Do not index
 		print '<meta name="viewport" content="width=device-width, initial-scale=1.0">'."\n"; // Scale for mobile device
 		print '<meta name="author" content="Dolibarr Development Team">'."\n";
-		print '<meta name="anti-csrf-token" content="'.newToken().'">'."\n";
+		print '<meta name="anti-csrf-newtoken" content="'.newToken().'">'."\n";
+		print '<meta name="anti-csrf-currenttoken" content="'.currentToken().'">'."\n";
 		if (getDolGlobalInt('MAIN_FEATURES_LEVEL')) {
 			print '<meta name="MAIN_FEATURES_LEVEL" content="'.getDolGlobalInt('MAIN_FEATURES_LEVEL').'">'."\n";
 		}
@@ -1982,11 +2037,11 @@ function top_menu($head, $title = '', $target = '', $disablejs = 0, $disablehead
 				$logouthtmltext .= $langs->trans("Logout").'<br>';
 
 				$logouttext .= '<a accesskey="l" href="'.DOL_URL_ROOT.'/user/logout.php?token='.newToken().'">';
-				$logouttext .= img_picto($langs->trans('Logout'), 'sign-out', '', false, 0, 0, '', 'atoplogin');
+				$logouttext .= img_picto($langs->trans('Logout'), 'sign-out', '', false, 0, 0, '', 'atoplogin valignmiddle');
 				$logouttext .= '</a>';
 			} else {
 				$logouthtmltext .= $langs->trans("NoLogoutProcessWithAuthMode", $_SESSION["dol_authmode"]);
-				$logouttext .= img_picto($langs->trans('Logout'), 'sign-out', '', false, 0, 0, '', 'atoplogin opacitymedium');
+				$logouttext .= img_picto($langs->trans('Logout'), 'sign-out', '', false, 0, 0, '', 'atoplogin valignmiddle opacitymedium');
 			}
 		}
 
@@ -2350,32 +2405,32 @@ function top_menu_user($hideloginname = 0, $urllogout = '')
 		$btnUser .= '
         <!-- Code to show/hide the user drop-down -->
         <script>
-        $( document ).ready(function() {
-            $(document).on("click", function(event) {
+        jQuery(document).ready(function() {
+            jQuery(document).on("click", function(event) {
                 if (!$(event.target).closest("#topmenu-login-dropdown").length) {
 					//console.log("close login dropdown");
 					// Hide the menus.
-                    $("#topmenu-login-dropdown").removeClass("open");
+                    jQuery("#topmenu-login-dropdown").removeClass("open");
                 }
             });
 			';
 
 		if ($conf->theme != 'md') {
 			$btnUser .= '
-	            $("#topmenu-login-dropdown .dropdown-toggle").on("click", function(event) {
+	            jQuery("#topmenu-login-dropdown .dropdown-toggle").on("click", function(event) {
 					console.log("toggle login dropdown");
 					event.preventDefault();
-	                $("#topmenu-login-dropdown").toggleClass("open");
+	                jQuery("#topmenu-login-dropdown").toggleClass("open");
 	            });
 
-	            $("#topmenulogincompanyinfo-btn").on("click", function() {
+	            jQuery("#topmenulogincompanyinfo-btn").on("click", function() {
 					console.log("Clik on topmenulogincompanyinfo-btn");
-	                $("#topmenulogincompanyinfo").slideToggle();
+	                jQuery("#topmenulogincompanyinfo").slideToggle();
 	            });
 
-	            $("#topmenuloginmoreinfo-btn").on("click", function() {
+	            jQuery("#topmenuloginmoreinfo-btn").on("click", function() {
 					console.log("Clik on topmenuloginmoreinfo-btn");
-	                $("#topmenuloginmoreinfo").slideToggle();
+	                jQuery("#topmenuloginmoreinfo").slideToggle();
 	            });';
 		}
 
@@ -2407,8 +2462,8 @@ function top_menu_quickadd()
 	$html .= '
         <!-- Code to show/hide the user drop-down -->
         <script>
-        $( document ).ready(function() {
-            $(document).on("click", function(event) {
+        jQuery(document).ready(function() {
+            jQuery(document).on("click", function(event) {
                 if (!$(event.target).closest("#topmenu-quickadd-dropdown").length) {
                     // Hide the menus.
                     $("#topmenu-quickadd-dropdown").removeClass("open");
@@ -2652,8 +2707,8 @@ function top_menu_bookmark()
 			$html .= '
 	        <!-- Code to show/hide the bookmark drop-down -->
 	        <script>
-	        $( document ).ready(function() {
-	            $(document).on("click", function(event) {
+	        jQuery(document).ready(function() {
+	            jQuery(document).on("click", function(event) {
 	                if (!$(event.target).closest("#topmenu-bookmark-dropdown").length) {
 						//console.log("close bookmark dropdown - we click outside");
 	                    // Hide the menus.
@@ -2661,13 +2716,13 @@ function top_menu_bookmark()
 	                }
 	            });
 
-	            $("#topmenu-bookmark-dropdown .dropdown-toggle").on("click", function(event) {
+	            jQuery("#topmenu-bookmark-dropdown .dropdown-toggle").on("click", function(event) {
 					console.log("toggle bookmark dropdown");
 					openBookMarkDropDown();
 	            });
 
 	            // Key map shortcut
-	            $(document).keydown(function(e){
+	            jQuery(document).keydown(function(e){
 	                  if( e.which === 77 && e.ctrlKey && e.shiftKey ){
 	                     console.log(\'control + shift + m : trigger open bookmark dropdown\');
 	                     openBookMarkDropDown();
@@ -2677,8 +2732,8 @@ function top_menu_bookmark()
 
 	            var openBookMarkDropDown = function() {
 	                event.preventDefault();
-	                $("#topmenu-bookmark-dropdown").toggleClass("open");
-	                $("#top-bookmark-search-input").focus();
+	                jQuery("#topmenu-bookmark-dropdown").toggleClass("open");
+	                jQuery("#top-bookmark-search-input").focus();
 	            }
 
 	        });
@@ -2718,7 +2773,7 @@ function top_menu_search()
 	$buttonList .= '</div>';
 
 
-	$searchInput = '<input name="sall" id="top-global-search-input" class="dropdown-search-input" placeholder="'.$langs->trans('Search').'" autocomplete="off" >';
+	$searchInput = '<input name="search_all" id="top-global-search-input" class="dropdown-search-input" placeholder="'.$langs->trans('Search').'" autocomplete="off" >';
 
 	$dropDownHtml = '<form id="top-menu-action-search" name="actionsearch" method="GET" action="'.$defaultAction.'" >';
 
@@ -2752,10 +2807,10 @@ function top_menu_search()
 	$html .= '
     <!-- Code to show/hide the user drop-down -->
     <script>
-    $( document ).ready(function() {
+    jQuery(document).ready(function() {
 
         // prevent submiting form on press ENTER
-        $("#top-global-search-input").keydown(function (e) {
+        jQuery("#top-global-search-input").keydown(function (e) {
             if (e.keyCode == 13) {
                 var inputs = $(this).parents("form").eq(0).find(":button");
                 if (inputs[inputs.index(this) + 1] != null) {
@@ -2767,7 +2822,7 @@ function top_menu_search()
         });
 
         // arrow key nav
-        $(document).keydown(function(e) {
+        jQuery(document).keydown(function(e) {
 			// Get the focused element:
 			var $focused = $(":focus");
 			if($focused.length && $focused.hasClass("global-search-item")){
@@ -2788,28 +2843,28 @@ function top_menu_search()
 
 
         // submit form action
-        $(".dropdown-global-search-button-list .global-search-item").on("click", function(event) {
-            $("#top-menu-action-search").attr("action", $(this).data("target"));
-            $("#top-menu-action-search").submit();
+        jQuery(".dropdown-global-search-button-list .global-search-item").on("click", function(event) {
+            jQuery("#top-menu-action-search").attr("action", $(this).data("target"));
+            jQuery("#top-menu-action-search").submit();
         });
 
         // close drop down
-        $(document).on("click", function(event) {
+        jQuery(document).on("click", function(event) {
 			if (!$(event.target).closest("#topmenu-global-search-dropdown").length) {
 				console.log("click close search - we click outside");
                 // Hide the menus.
-                $("#topmenu-global-search-dropdown").removeClass("open");
+                jQuery("#topmenu-global-search-dropdown").removeClass("open");
             }
         });
 
         // Open drop down
-        $("#topmenu-global-search-dropdown .dropdown-toggle").on("click", function(event) {
+        jQuery("#topmenu-global-search-dropdown .dropdown-toggle").on("click", function(event) {
 			console.log("toggle search dropdown");
             openGlobalSearchDropDown();
         });
 
         // Key map shortcut
-        $(document).keydown(function(e){
+        jQuery(document).keydown(function(e){
               if( e.which === 70 && e.ctrlKey && e.shiftKey ){
                  console.log(\'control + shift + f : trigger open global-search dropdown\');
                  openGlobalSearchDropDown();
@@ -2818,8 +2873,8 @@ function top_menu_search()
 
 
         var openGlobalSearchDropDown = function() {
-            $("#topmenu-global-search-dropdown").toggleClass("open");
-            $("#top-global-search-input").focus();
+            jQuery("#topmenu-global-search-dropdown").toggleClass("open");
+            jQuery("#top-global-search-input").focus();
         }
 
     });
@@ -2856,14 +2911,9 @@ function left_menu($menu_array_before, $helppagename = '', $notused = '', $menu_
 
 	if (empty($conf->dol_hide_leftmenu) && (!defined('NOREQUIREMENU') || !constant('NOREQUIREMENU'))) {
 		// Instantiate hooks for external modules
-		$hookmanager->initHooks(array('searchform', 'leftblock'));
+		$hookmanager->initHooks(array('leftblock'));
 
 		print "\n".'<!-- Begin side-nav id-left -->'."\n".'<div class="side-nav"><div id="id-left">'."\n";
-
-		if ($conf->browser->layout == 'phone') {
-			$conf->global->MAIN_USE_OLD_SEARCH_FORM = 1; // Select into select2 is awfull on smartphone. TODO Is this still true with select2 v4 ?
-		}
-
 		print "\n";
 
 		if (!is_object($form)) {
@@ -2871,9 +2921,14 @@ function left_menu($menu_array_before, $helppagename = '', $notused = '', $menu_
 		}
 		$selected = -1;
 		if (empty($conf->global->MAIN_USE_TOP_MENU_SEARCH_DROPDOWN)) {
+			// Select into select2 is awfull on smartphone. TODO Is this still true with select2 v4 ?
+			if ($conf->browser->layout == 'phone') {
+				$conf->global->MAIN_USE_OLD_SEARCH_FORM = 1;
+			}
+
 			$usedbyinclude = 1;
 			$arrayresult = null;
-			include DOL_DOCUMENT_ROOT.'/core/ajax/selectsearchbox.php'; // This set $arrayresult
+			include DOL_DOCUMENT_ROOT.'/core/ajax/selectsearchbox.php'; // This make initHooks('searchform') then set $arrayresult
 
 			if ($conf->use_javascript_ajax && empty($conf->global->MAIN_USE_OLD_SEARCH_FORM)) {
 				$searchform .= $form->selectArrayFilter('searchselectcombo', $arrayresult, $selected, '', 1, 0, (empty($conf->global->MAIN_SEARCHBOX_CONTENT_LOADED_BEFORE_KEY) ? 1 : 0), 'vmenusearchselectcombo', 1, $langs->trans("Search"), 1);
@@ -3096,7 +3151,7 @@ function main_area($title = '')
 			print '<tbody>';
 			print '<tr><td rowspan="0" class="width20p">';
 			if ($conf->global->MAIN_SHOW_LOGO && empty($conf->global->MAIN_OPTIMIZEFORTEXTBROWSER) && !empty($conf->global->MAIN_INFO_SOCIETE_LOGO)) {
-				print '<img id="mysoc-info-header-logo" style="max-width:100%" alt="" src="'.DOL_URL_ROOT.'/viewimage.php?cache=1&amp;modulepart=mycompany&amp;file='.urlencode('logos/'.dol_escape_htmltag($conf->global->MAIN_INFO_SOCIETE_LOGO)).'">';
+				print '<img id="mysoc-info-header-logo" style="max-width:100%" alt="" src="'.DOL_URL_ROOT.'/viewimage.php?cache=1&modulepart=mycompany&file='.urlencode('logos/'.dol_escape_htmltag($conf->global->MAIN_INFO_SOCIETE_LOGO)).'">';
 			}
 			print '</td><td  rowspan="0" class="width50p"></td></tr>'."\n";
 			print '<tr><td class="titre bold">'.dol_escape_htmltag($conf->global->MAIN_INFO_SOCIETE_NOM).'</td></tr>'."\n";
