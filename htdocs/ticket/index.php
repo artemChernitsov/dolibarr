@@ -346,7 +346,7 @@ if (!empty($user->rights->ticket->read)) {
 		$sql .= " AND t.fk_soc= ".((int) $user->socid);
 	} else {
 		// Restricted to assigned user only
-		if (!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY) && !$user->rights->ticket->manage) {
+		if (!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY) && !empty($user->rights->ticket->manage)) {
 			$sql .= " AND t.fk_user_assign = ".((int) $user->id);
 		}
 	}
