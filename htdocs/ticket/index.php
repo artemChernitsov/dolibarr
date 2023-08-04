@@ -354,7 +354,7 @@ if ($user->hasRight('ticket', 'read')) {
 		$sql .= " AND t.fk_soc= ".((int) $user->socid);
 	} else {
 		// Restricted to assigned user only
-		if (getDolGlobalString('TICKET_LIMIT_VIEW_ASSIGNED_ONLY') && !$user->hasRight('ticket', 'manage')) {
+		if (!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY) && !empty($user->rights->ticket->manage)) {
 			$sql .= " AND t.fk_user_assign = ".((int) $user->id);
 		}
 	}
