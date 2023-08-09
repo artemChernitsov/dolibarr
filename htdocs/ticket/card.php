@@ -815,12 +815,12 @@ if ($action == 'create' || $action == 'presend') {
 	|| $action == 'editsubject' || $action == 'edit_extras' || $action == 'update_extras' || $action == 'edit_extrafields' || $action == 'set_extrafields' || $action == 'classify' || $action == 'sel_contract' || $action == 'edit_message_init' || $action == 'set_status' || $action == 'dellink') {
 	if ($res > 0) {
 		// or for unauthorized internals users
-		var_dump($object->fk_user_create != $user->id);
-		var_dump(!in_array($id,$listofcolobIdArr));
-		var_dump(!$user->socid);
-		var_dump(!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY));
-		var_dump(($object->fk_user_assign != $user->id));
-		var_dump(!$user->rights->ticket->manage);
+//		var_dump($object->fk_user_create != $user->id);
+//		var_dump(!in_array($id,$listofcolobIdArr));
+//		var_dump(!$user->socid);
+//		var_dump(!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY));
+//		var_dump(($object->fk_user_assign != $user->id));
+//		var_dump(!$user->rights->ticket->manage);
 
 		//TODO this not optimal view
 		if (!in_array($id,$listofcolobIdArr) && !$user->socid && (!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY) && $object->fk_user_assign != $user->id && $object->fk_user_create != $user->id) || !$user->rights->ticket->manage) {
