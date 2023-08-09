@@ -152,6 +152,24 @@ include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_array_fields.tpl.php';
 $object->fields = dol_sort_array($object->fields, 'position');
 $arrayfields = dol_sort_array($arrayfields, 'position');
 
+// get colloboration id
+$sqlforcoloblist = "SELECT ec.element_id FROM ".MAIN_DB_PREFIX."c_type_contact tc, llx_element_contact ec LEFT JOIN llx_user t on ec.fk_socpeople = t.rowid WHERE ec.fk_socpeople = ".((int) $user->id)." AND ec.fk_c_type_contact = tc.rowid AND tc.element = 'ticket' AND tc.source = 'internal' AND tc.active = 1 ORDER BY ec.element_id ASC";
+$listofcolobIdArr = array();
+$resql = $db->query($sqlforcoloblist);
+if ($resql) {
+	$num = $db->num_rows($resql);
+	$i = 0;
+	if ($num) {
+		while ($i < $num) {
+			$obj = $db->fetch_object($resql);
+			if ($obj) {
+				$listofcolobIdArr[$i]= $obj->element_id;
+			}
+			$i++;
+		}
+	}
+}
+$listofcolobId = natural_search('t.rowid', join(',', $listofcolobIdArr), 2, 1);
 
 // Security check
 if (!$user->rights->ticket->read) {
@@ -443,25 +461,8 @@ if ($search_dateclose_end) {
 }
 
 if (!$user->socid && ($mode == "mine" || (!$user->admin && $conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY))) {
-	$sqlforcoloblist = "SELECT ec.element_id FROM ".MAIN_DB_PREFIX."_c_type_contact tc, llx_element_contact ec LEFT JOIN llx_user t on ec.fk_socpeople = t.rowid WHERE ec.fk_socpeople = ".((int) $user->id)." AND ec.fk_c_type_contact = tc.rowid AND tc.element = 'ticket' AND tc.source = 'internal' AND tc.active = 1 ORDER BY ec.element_id ASC";
-	$element_id = array();
-	$resql = $db->query($sqlforcoloblist);
-	if ($resql) {
-		$num = $db->num_rows($resql);
-		$i = 0;
-		if ($num) {
-			while ($i < $num) {
-				$obj = $db->fetch_object($resql);
-				if ($obj) {
-					$element_id[$i]= $obj->element_id;
-				}
-				$i++;
-			}
-		}
-	}
-	$listofcolobId = natural_search('t.rowid', join(',', $element_id), 2, 1);
 	$sql .= " AND (t.fk_user_assign = ".((int) $user->id);
-	$sql .= " OR ".$listofcolobId;
+	if($listofcolobId) {$sql .= " OR ".$listofcolobId;}
 	$sql .= " OR t.fk_user_create = ".((int) $user->id);
 	$sql .= ")";
 }

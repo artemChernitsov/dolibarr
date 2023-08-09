@@ -122,29 +122,22 @@ $url_page_current = DOL_URL_ROOT.'/ticket/card.php';
 if ($user->socid > 0) $socid = $user->socid;
 $result = restrictedArea($user, 'ticket', $object->id);
 
-//check only admin TODO check if user have id
-if (!$user->admin && $conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY){
-	$sqlforcoloblist = "SELECT ec.element_id FROM ".MAIN_DB_PREFIX."_c_type_contact tc, llx_element_contact ec LEFT JOIN llx_user t on ec.fk_socpeople = t.rowid WHERE ec.fk_socpeople = ".((int) $user->id)." AND ec.fk_c_type_contact = tc.rowid AND tc.element = 'ticket' AND tc.source = 'internal' AND tc.active = 1 ORDER BY ec.element_id ASC";
-	$element_id = array();
-	$resql = $db->query($sqlforcoloblist);
-	if ($resql) {
-		$num = $db->num_rows($resql);
-		$i = 0;
-		if ($num) {
-			while ($i < $num) {
-				$obj = $db->fetch_object($resql);
-				if ($obj) {
-					$element_id[$i]= $obj->element_id;
-				}
-				$i++;
+// get colloboration id
+$sqlforcoloblist = "SELECT ec.element_id FROM ".MAIN_DB_PREFIX."c_type_contact tc, llx_element_contact ec LEFT JOIN llx_user t on ec.fk_socpeople = t.rowid WHERE ec.fk_socpeople = ".((int) $user->id)." AND ec.fk_c_type_contact = tc.rowid AND tc.element = 'ticket' AND tc.source = 'internal' AND tc.active = 1 ORDER BY ec.element_id ASC";
+$listofcolobIdArr = array();
+$resql = $db->query($sqlforcoloblist);
+if ($resql) {
+	$num = $db->num_rows($resql);
+	$i = 0;
+	if ($num) {
+		while ($i < $num) {
+			$obj = $db->fetch_object($resql);
+			if ($obj) {
+				$listofcolobIdArr[$i]= $obj->element_id;
 			}
+			$i++;
 		}
 	}
-	$listofcolobId = natural_search('t.rowid', join(',', $element_id), 2, 1);
-	$sql .= " AND (t.fk_user_assign = ".((int) $user->id);
-	$sql .= " OR ".$listofcolobId;
-	$sql .= " OR t.fk_user_create = ".((int) $user->id);
-	$sql .= ")";
 }
 
 $triggermodname = 'TICKET_MODIFY';
@@ -817,11 +810,20 @@ if ($action == 'create' || $action == 'presend') {
 	print $form->buttonsSaveCancel();
 
 	print '</form>'; */
+
 } elseif (empty($action) || $action == 'view' || $action == 'addlink' || $action == 'dellink' || $action == 'presend' || $action == 'presend_addmessage' || $action == 'close' || $action == 'abandon' || $action == 'delete' || $action == 'editcustomer' || $action == 'progression' || $action == 'categories' || $action == 'reopen'
 	|| $action == 'editsubject' || $action == 'edit_extras' || $action == 'update_extras' || $action == 'edit_extrafields' || $action == 'set_extrafields' || $action == 'classify' || $action == 'sel_contract' || $action == 'edit_message_init' || $action == 'set_status' || $action == 'dellink') {
 	if ($res > 0) {
 		// or for unauthorized internals users
-		if (!$user->socid && (!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY) && $object->fk_user_assign != $user->id) && !$user->rights->ticket->manage) {
+		var_dump($object->fk_user_create != $user->id);
+		var_dump(!in_array($id,$listofcolobIdArr));
+		var_dump(!$user->socid);
+		var_dump(!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY));
+		var_dump(($object->fk_user_assign != $user->id));
+		var_dump(!$user->rights->ticket->manage);
+
+		//TODO this not optimal view
+		if (!in_array($id,$listofcolobIdArr) && !$user->socid && (!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY) && $object->fk_user_assign != $user->id && $object->fk_user_create != $user->id) || !$user->rights->ticket->manage) {
 			accessforbidden('', 0, 1);
 		}
 
