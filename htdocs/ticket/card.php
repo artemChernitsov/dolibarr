@@ -820,10 +820,10 @@ if ($action == 'create' || $action == 'presend') {
 //		var_dump(!$user->socid);
 //		var_dump(!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY));
 //		var_dump(($object->fk_user_assign != $user->id));
-//		var_dump(!$user->rights->ticket->manage);
+//		var_dump(!$user->admin);
 
 		//TODO this not optimal view
-		if (!in_array($id,$listofcolobIdArr) && !$user->socid && (!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY) && $object->fk_user_assign != $user->id && $object->fk_user_create != $user->id) || !$user->rights->ticket->manage) {
+		if (!in_array($id,$listofcolobIdArr) && !$user->socid && (!empty($conf->global->TICKET_LIMIT_VIEW_ASSIGNED_ONLY) && $object->fk_user_assign != $user->id && $object->fk_user_create != $user->id) && !$user->admin || !$user->rights->ticket->manage) {
 			accessforbidden('', 0, 1);
 		}
 
