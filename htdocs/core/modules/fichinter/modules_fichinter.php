@@ -51,8 +51,6 @@ abstract class ModelePDFFicheinter extends CommonDocGenerator
 	public static function liste_modeles($db, $maxfilenamelength = 0)
 	{
 		// phpcs:enable
-		global $conf;
-
 		$type = 'ficheinter';
 		$list = array();
 
@@ -73,6 +71,9 @@ abstract class ModeleNumRefFicheinter
 	 * @var string Error code (or message)
 	 */
 	public $error = '';
+
+	public $version;
+
 
 	/**
 	 * 	Return if a module can be used or not

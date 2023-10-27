@@ -676,9 +676,9 @@ class Products extends DolibarrApi
 			require_once DOL_DOCUMENT_ROOT.'/product/class/productcustomerprice.class.php';
 			$prodcustprice = new Productcustomerprice($this->db);
 			$filter = array();
-			$filter['t.fk_product'] .= $id;
+			$filter['t.fk_product'] = $id;
 			if ($thirdparty_id) {
-				$filter['t.fk_soc'] .= $thirdparty_id;
+				$filter['t.fk_soc'] = $thirdparty_id;
 			}
 			$result = $prodcustprice->fetchAll('', '', 0, 0, $filter);
 		}
@@ -873,7 +873,8 @@ class Products extends DolibarrApi
 		}
 
 		$sql = "SELECT t.rowid, t.ref, t.ref_ext";
-		$sql .= " FROM ".$this->db->prefix()."product as t";
+		$sql .= " FROM ".MAIN_DB_PREFIX."product AS t LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields AS ef ON (ef.fk_object = t.rowid)"; // Modification VMR Global Solutions to include extrafields as search parameters in the API GET call, so we will be able to filter on extrafields
+
 		if ($category > 0) {
 			$sql .= ", ".$this->db->prefix()."categorie_product as c";
 		}
@@ -1046,21 +1047,21 @@ class Products extends DolibarrApi
 			$sql .= $this->db->plimit($limit, $offset);
 		}
 
-		$result = $this->db->query($sql);
+		$resql = $this->db->query($sql);
 
-		if (!$result) {
-			throw new RestException(503, 'Error when retrieve product attribute list : '.$this->db->lasterror());
+		if (!$resql) {
+			throw new RestException(503, 'Error when retrieving product attribute list : '.$this->db->lasterror());
 		}
 
 		$return = array();
-		while ($result = $this->db->fetch_object($query)) {
+		while ($obj = $this->db->fetch_object($resql)) {
 			$tmp = new ProductAttribute($this->db);
-			$tmp->id = $result->rowid;
-			$tmp->ref = $result->ref;
-			$tmp->ref_ext = $result->ref_ext;
-			$tmp->label = $result->label;
-			$tmp->position = $result->position;
-			$tmp->entity = $result->entity;
+			$tmp->id = $obj->rowid;
+			$tmp->ref = $obj->ref;
+			$tmp->ref_ext = $obj->ref_ext;
+			$tmp->label = $obj->label;
+			$tmp->position = $obj->position;
+			$tmp->entity = $obj->entity;
 
 			$return[] = $this->_cleanObjectDatas($tmp);
 		}
@@ -1075,8 +1076,8 @@ class Products extends DolibarrApi
 	/**
 	 * Get attribute by ID.
 	 *
-	 * @param  int $id ID of Attribute
-	 * @return array
+	 * @param  	int 		$id	 		ID of Attribute
+	 * @return 	Object    				Object with cleaned properties
 	 *
 	 * @throws RestException 401
 	 * @throws RestException 404
@@ -1112,7 +1113,7 @@ class Products extends DolibarrApi
 		$obj = $this->db->fetch_object($resql);
 		$prodattr->is_used_by_products = (int) $obj->nb;
 
-		return $prodattr;
+		return $this->_cleanObjectDatas($prodattr);
 	}
 
 	/**
@@ -1209,6 +1210,7 @@ class Products extends DolibarrApi
 
 		$resql = $this->db->query($sql);
 		$obj = $this->db->fetch_object($resql);
+
 		$attr["is_used_by_products"] = (int) $obj->nb;
 
 		return $attr;
@@ -1242,15 +1244,16 @@ class Products extends DolibarrApi
 		if ($resid <= 0) {
 			throw new RestException(500, "Error creating new attribute");
 		}
+
 		return $resid;
 	}
 
 	/**
 	 * Update attributes by id.
 	 *
-	 * @param  int $id    ID of Attribute
-	 * @param  array $request_data Datas
-	 * @return array
+	 * @param  	int 	$id    			ID of Attribute
+	 * @param  	array 	$request_data 	Datas
+	 * @return 	Object    				Object with cleaned properties
 	 *
 	 * @throws RestException
 	 * @throws RestException 401
@@ -1287,7 +1290,7 @@ class Products extends DolibarrApi
 			} elseif ($result < 0) {
 				throw new RestException(500, "Error fetching attribute");
 			} else {
-				return $prodattr;
+				return $this->_cleanObjectDatas($prodattr);
 			}
 		}
 		throw new RestException(500, "Error updating attribute");
@@ -1556,9 +1559,9 @@ class Products extends DolibarrApi
 	/**
 	 * Update attribute value.
 	 *
-	 * @param  int $id ID of Attribute
-	 * @param  array $request_data Datas
-	 * @return array
+	 * @param  	int 	$id 			ID of Attribute
+	 * @param  	array 	$request_data 	Datas
+	 * @return 	Object    				Object with cleaned properties
 	 *
 	 * @throws RestException 401
 	 * @throws RestException 500	System error
@@ -1594,7 +1597,7 @@ class Products extends DolibarrApi
 			} elseif ($result < 0) {
 				throw new RestException(500, "Error fetching attribute");
 			} else {
-				return $objectval;
+				return $this->_cleanObjectDatas($objectval);
 			}
 		}
 		throw new RestException(500, "Error updating attribute");
@@ -1883,7 +1886,7 @@ class Products extends DolibarrApi
 	 *
 	 * @param  int $id ID of Product
 	 * @param  int $selected_warehouse_id ID of warehouse
-	 * @return int
+	 * @return array
 	 *
 	 * @throws RestException 500	System error
 	 * @throws RestException 401
@@ -1893,7 +1896,6 @@ class Products extends DolibarrApi
 	 */
 	public function getStock($id, $selected_warehouse_id = null)
 	{
-
 		if (!DolibarrApiAccess::$user->rights->produit->lire || !DolibarrApiAccess::$user->rights->stock->lire) {
 			throw new RestException(401);
 		}
@@ -1919,7 +1921,7 @@ class Products extends DolibarrApi
 			throw new RestException(404, 'No stock found');
 		}
 
-		return ['stock_warehouses'=>$stockData];
+		return array('stock_warehouses'=>$stockData);
 	}
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.PublicUnderscore

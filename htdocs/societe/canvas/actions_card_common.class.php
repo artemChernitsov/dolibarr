@@ -70,6 +70,8 @@ abstract class ActionsCardCommon
 			$object->fetch($id, $ref);
 		}
 		$this->object = $object;
+
+		return $object;
 	}
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
@@ -186,7 +188,7 @@ abstract class ActionsCardCommon
 			$s = $modCodeClient->getToolTip($langs, $this->object, 0);
 			$this->tpl['help_customercode'] = $form->textwithpicto('', $s, 1);
 
-			if ((isModEnabled("fournisseur") && empty($conf->global->MAIN_USE_NEW_SUPPLIERMOD)) || isModEnabled("supplier_order") || isModEnabled("supplier_invoice")) {
+			if (isModEnabled("supplier_order") || isModEnabled("supplier_invoice")) {
 				$this->tpl['supplier_enabled'] = 1;
 
 				// Load object modCodeFournisseur
@@ -311,7 +313,7 @@ abstract class ActionsCardCommon
 				//$s=picto_from_langcode($this->default_lang);
 				//print ($s?$s.' ':'');
 				$langs->load("languages");
-				$this->tpl['default_lang'] = ($this->default_lang ? $langs->trans('Language_'.$this->object->default_lang) : '');
+				$this->tpl['default_lang'] = (empty($this->object->default_lang) ? '' : $langs->trans('Language_'.$this->object->default_lang));
 			}
 
 			$this->tpl['image_edit'] = img_edit();
@@ -380,7 +382,7 @@ abstract class ActionsCardCommon
 	 *  Assign POST values into object
 	 *
 	 *	@param		string		$action		Action string
-	 *  @return		string					HTML output
+	 *  @return		void
 	 */
 	private function assign_post($action)
 	{

@@ -75,8 +75,6 @@ abstract class ModeleExpenseReport extends CommonDocGenerator
 	public static function liste_modeles($db, $maxfilenamelength = 0)
 	{
 		// phpcs:enable
-		global $conf;
-
 		$type = 'expensereport';
 		$list = array();
 
@@ -116,6 +114,9 @@ abstract class ModeleNumRefExpenseReport
 	 * @var string Error code (or message)
 	 */
 	public $error = '';
+
+	public $version;
+
 
 	/**
 	 *	Return if a model can be used or not

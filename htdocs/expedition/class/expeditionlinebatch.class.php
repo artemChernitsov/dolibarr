@@ -45,6 +45,7 @@ class ExpeditionLineBatch extends CommonObject
 	public $dluo_qty; // deprecated, use qty
 	public $entrepot_id;
 	public $fk_origin_stock;		// rowid in llx_product_batch table
+	public $fk_warehouse;			// for future use in v19
 	public $fk_expeditiondet;
 
 
@@ -103,11 +104,16 @@ class ExpeditionLineBatch extends CommonObject
 	 * Create an expeditiondet_batch DB record link to an expedtiondet record
 	 *
 	 * @param	int		$id_line_expdet		rowid of expedtiondet record
+	 * @param	User	$f_user				User that create
+	 * @param	int		$notrigger			1 = disable triggers
 	 * @return	int							<0 if KO, Id of record (>0) if OK
 	 */
-	public function create($id_line_expdet)
+	public function create($id_line_expdet, $f_user = null, $notrigger = 0)
 	{
+		global $user;
+
 		$error = 0;
+		if (!is_object($f_user)) $f_user = $user;
 
 		$id_line_expdet = (int) $id_line_expdet;
 
@@ -118,6 +124,7 @@ class ExpeditionLineBatch extends CommonObject
 		$sql .= ", batch";
 		$sql .= ", qty";
 		$sql .= ", fk_origin_stock";
+		// TODO Add fk_warehouse here
 		$sql .= ") VALUES (";
 		$sql .= $id_line_expdet.",";
 		$sql .= " ".(!isset($this->sellby) || dol_strlen($this->sellby) == 0 ? 'NULL' : ("'".$this->db->idate($this->sellby))."'").",";
@@ -137,13 +144,24 @@ class ExpeditionLineBatch extends CommonObject
 			$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX.$this->table_element);
 
 			$this->fk_expeditiondet = $id_line_expdet;
+		}
+
+		if (!$error && !$notrigger) {
+			// Call trigger
+			$result = $this->call_trigger('EXPEDITIONLINEBATCH_CREATE', $f_user);
+			if ($result < 0) {
+				$error++;
+			}
+			// End call triggers
+		}
+
+		if (!$error) {
 			return $this->id;
 		} else {
 			foreach ($this->errors as $errmsg) {
 				dol_syslog(get_class($this)."::create ".$errmsg, LOG_ERR);
 				$this->error .= ($this->error ? ', '.$errmsg : $errmsg);
 			}
-			$this->db->rollback();
 			return -1 * $error;
 		}
 	}
@@ -194,7 +212,7 @@ class ExpeditionLineBatch extends CommonObject
 		}
 		$sql .= " WHERE fk_expeditiondet=".(int) $id_line_expdet;
 
-		dol_syslog(__METHOD__."", LOG_DEBUG);
+		dol_syslog(__METHOD__, LOG_DEBUG);
 		$resql = $this->db->query($sql);
 		if ($resql) {
 			$num = $this->db->num_rows($resql);

@@ -50,8 +50,6 @@ abstract class ModelePDFMo extends CommonDocGenerator
 	public static function liste_modeles($db, $maxfilenamelength = 0)
 	{
 		// phpcs:enable
-		global $conf;
-
 		$type = 'mrp';
 		$list = array();
 
@@ -74,6 +72,9 @@ abstract class ModeleNumRefMos
 	 */
 	public $error = '';
 
+	public $version;
+
+
 	/**
 	 *	Return if a module can be used or not
 	 *
@@ -87,7 +88,7 @@ abstract class ModeleNumRefMos
 	/**
 	 *	Returns the default description of the numbering template
 	 *
-	 *	@return     string      Texte descripif
+	 *	@return     string      Descriptive text
 	 */
 	public function info()
 	{

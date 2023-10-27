@@ -42,17 +42,22 @@ require_once DOL_DOCUMENT_ROOT . '/hrm/lib/hrm_skill.lib.php';
 $langs->loadLangs(array('hrm', 'other'));
 
 // Get Parameters
-$id = GETPOST('id', 'int');
-$TSkillsToAdd = GETPOST('fk_skill', 'array');
-$objecttype = GETPOST('objecttype', 'alpha');
-$TNote = GETPOST('TNote', 'array');
-$lineid = GETPOST('lineid', 'int');
 $action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
 $cancel = GETPOST('cancel', 'aZ09');
 $contextpage = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'skillcard'; // To manage different context of search
 $backtopage = GETPOST('backtopage', 'alpha');
 $backtopageforcancel = GETPOST('backtopageforcancel', 'alpha');
+
+$id = GETPOST('id', 'int');
+$TSkillsToAdd = GETPOST('fk_skill', 'array');
+$objecttype = GETPOST('objecttype', 'alpha');
+$TNote = GETPOST('TNote', 'array');
+$lineid = GETPOST('lineid', 'int');
+
+if (empty($objecttype)) {
+	$objecttype = 'job';
+}
 
 $TAuthorizedObjects = array('job', 'user');
 $skill = new SkillRank($db);
@@ -226,9 +231,12 @@ if ($object->id > 0 && (empty($action) || ($action != 'edit' && $action != 'crea
 	} else {
 		$linkback = '<a href="' . $listLink . '?restore_lastsearch_values=1' . (!empty($socid) ? '&socid=' . $socid : '') . '">' . $langs->trans("BackToList") . '</a>';
 
-		$morehtmlref = '<a href="'.DOL_URL_ROOT.'/user/vcard.php?id='.$object->id.'" class="refid">';
+		$morehtmlref = '<a href="'.DOL_URL_ROOT.'/user/vcard.php?id='.$object->id.'&output=file&file='.urlencode(dol_sanitizeFileName($object->getFullName($langs).'.vcf')).'" class="refid" rel="noopener">';
 		$morehtmlref .= img_picto($langs->trans("Download").' '.$langs->trans("VCard"), 'vcard.png', 'class="valignmiddle marginleftonly paddingrightonly"');
 		$morehtmlref .= '</a>';
+
+		$urltovirtualcard = '/user/virtualcard.php?id='.((int) $object->id);
+		$morehtmlref .= dolButtonToOpenUrlInDialogPopup('publicvirtualcard', $langs->trans("PublicVirtualCardUrl").' - '.$object->getFullName($langs), img_picto($langs->trans("PublicVirtualCardUrl"), 'card', 'class="valignmiddle marginleftonly paddingrightonly"'), $urltovirtualcard, '', 'nohover');
 
 		dol_banner_tab($object, 'id', $linkback, 1, 'rowid', 'rowid', $morehtmlref, '&objecttype='.$objecttype);
 	}

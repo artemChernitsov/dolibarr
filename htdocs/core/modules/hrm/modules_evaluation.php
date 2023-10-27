@@ -49,8 +49,6 @@ abstract class ModelePDFEvaluation extends CommonDocGenerator
 	public static function liste_modeles($db, $maxfilenamelength = 0)
 	{
 		// phpcs:enable
-		global $conf;
-
 		$type = 'evaluation';
 		$list = array();
 
@@ -73,6 +71,9 @@ abstract class ModeleNumRefEvaluation
 	 */
 	public $error = '';
 
+	public $version;
+
+
 	/**
 	 *	Return if a module can be used or not
 	 *
@@ -86,7 +87,7 @@ abstract class ModeleNumRefEvaluation
 	/**
 	 *	Returns the default description of the numbering template
 	 *
-	 *	@return     string      Texte descripif
+	 *	@return     string      Descriptive text
 	 */
 	public function info()
 	{

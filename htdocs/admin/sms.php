@@ -111,8 +111,11 @@ if ($action == 'send' && !$cancel) {
 		$body = make_substitutions($body, $substitutionarrayfortest);
 
 		require_once DOL_DOCUMENT_ROOT.'/core/class/CSMSFile.class.php';
-
-		$smsfile = new CSMSFile($sendto, $smsfrom, $body, $deliveryreceipt, $deferred, $priority, $class); // This define OvhSms->login, pass, session and account
+		try {
+			$smsfile = new CSMSFile($sendto, $smsfrom, $body, $deliveryreceipt, $deferred, $priority, $class); // This define OvhSms->login, pass, session and account
+		} catch (Exception $e) {
+			setEventMessages($e->getMessage(), null, 'error');
+		}
 		$result = $smsfile->sendfile(); // This send SMS
 
 		if ($result) {
@@ -221,7 +224,7 @@ if ($action == 'edit') {
 
 	// Method
 	print '<tr class="oddeven"><td>'.$langs->trans("MAIN_SMS_SENDMODE").'</td><td>';
-	$text = empty(getDolGlobalString('MAIN_SMS_SENDMODE')) ? '' : $listofmethods[getDolGlobalString('MAIN_SMS_SENDMODE')];
+	$text = getDolGlobalString('MAIN_SMS_SENDMODE') ? $listofmethods[getDolGlobalString('MAIN_SMS_SENDMODE')] : '';
 	if (empty($text)) {
 		$text = $langs->trans("Undefined").' '.img_warning();
 	}

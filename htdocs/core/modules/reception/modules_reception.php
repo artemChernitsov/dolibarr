@@ -43,8 +43,6 @@ abstract class ModelePdfReception extends CommonDocGenerator
 	public static function liste_modeles($db, $maxfilenamelength = 0)
 	{
 		// phpcs:enable
-		global $conf;
-
 		$type = 'reception';
 		$list = array();
 
@@ -63,7 +61,11 @@ abstract class ModelNumRefReception
 {
 	public $error = '';
 
-	/** Return if a model can be used or not
+	public $version;
+
+
+	/**
+	 *  Return if a model can be used or not
 	 *
 	 *  @return		boolean     true if model can be used
 	 */

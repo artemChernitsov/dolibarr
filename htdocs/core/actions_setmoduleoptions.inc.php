@@ -126,7 +126,7 @@ if ($action == 'setModuleOptions' && !empty($user->admin)) {
 	if (GETPOST('upload', 'alpha') && GETPOST('keyforuploaddir', 'aZ09')) {
 		include_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 		$keyforuploaddir = GETPOST('keyforuploaddir', 'aZ09');
-		$listofdir = explode(',', preg_replace('/[\r\n]+/', ',', trim($conf->global->$keyforuploaddir)));
+		$listofdir = explode(',', preg_replace('/[\r\n]+/', ',', trim(getDolGlobalString($keyforuploaddir))));
 
 		foreach ($listofdir as $key => $tmpdir) {
 			$tmpdir = trim($tmpdir);
@@ -148,7 +148,6 @@ if ($action == 'setModuleOptions' && !empty($user->admin)) {
 
 
 		if ($upload_dir) {
-
 			$result = dol_add_file_process($upload_dir, 1, 1, 'uploadfile', '');
 			if ($result <= 0) {
 				$error++;

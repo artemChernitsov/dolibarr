@@ -53,8 +53,6 @@ abstract class ModelePDFSupplierProposal extends CommonDocGenerator
 	public static function liste_modeles($db, $maxfilenamelength = 0)
 	{
 		// phpcs:enable
-		global $conf;
-
 		$type = 'supplier_proposal';
 		$list = array();
 
@@ -76,6 +74,9 @@ abstract class ModeleNumRefSupplierProposal
 	 */
 	public $error = '';
 
+	public $version;
+
+
 	/**
 	 * Return if a module can be used or not
 	 *
@@ -87,9 +88,9 @@ abstract class ModeleNumRefSupplierProposal
 	}
 
 	/**
-	 *  Renvoi la description par defaut du modele de numerotation
+	 *  Returns the default description of the numbering pattern
 	 *
-	 * 	@return     string      Texte descripif
+	 * 	@return     string      Descriptive text
 	 */
 	public function info()
 	{
