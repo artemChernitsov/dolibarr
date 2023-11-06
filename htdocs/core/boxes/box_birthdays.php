@@ -105,7 +105,7 @@ class box_birthdays extends ModeleBoxes
 			$sql .= dolSqlDateFilter('u.dateemployment', 0, $tmparray['mon'], 0);
 			$sql .= " AND u.dateemployment < '".$this->db->idate(dol_get_first_day($tmparray['year']))."'";
 			//$sql .= " ORDER BY daya ASC";	// We want to have date of the month sorted by the day without taking into consideration the year
-			$sql .= $this->db->plimit($max, 0);
+			//$sql .= $this->db->plimit($max, 0);
                         $sql .= " ORDER BY daya ASC";
 
 			dol_syslog(get_class($this)."::loadBox", LOG_DEBUG);
