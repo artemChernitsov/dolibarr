@@ -292,7 +292,7 @@ function getEntity($element, $shared = 1, $currentobject = null)
 		$out = $mc->getEntity($element, $shared, $currentobject);
 	} else {
 		$out = '';
-		$addzero = array('user', 'usergroup', 'cronjob', 'c_email_templates', 'email_template', 'default_values');
+		$addzero = array('user', 'usergroup', 'cronjob', 'c_email_templates', 'email_template', 'default_values', 'overwrite_trans');
 		if (in_array($element, $addzero)) {
 			$out .= '0,';
 		}
@@ -1587,6 +1587,43 @@ function dol_escape_json($stringtoescape)
 }
 
 /**
+ * Return a string label ready to be output on HTML content
+ * To use text inside an attribute, use can use only dol_escape_htmltag()
+ *
+ * @param	string	$s		String to print
+ * @return	string			String ready for HTML output
+ */
+function dolPrintLabel($s)
+{
+	return dol_escape_htmltag(dol_htmlentitiesbr($s));
+}
+
+/**
+ * Return a string ready to be output on HTML page
+ * To use text inside an attribute, use can use only dol_escape_htmltag()
+ *
+ * @param	string	$s		String to print
+ * @return	string			String ready for HTML output
+ */
+function dolPrintHTML($s)
+{
+	return dol_escape_htmltag(dol_htmlwithnojs(dol_string_onlythesehtmltags(dol_htmlentitiesbr($s), 1, 1, 1)), 1, 1, 'common', 0, 1);
+}
+
+/**
+ * Return a string ready to be output on input textarea
+ * To use text inside an attribute, use can use only dol_escape_htmltag()
+ *
+ * @param	string	$s		String to print
+ * @return	string			String ready for HTML output into a textarea
+ */
+function dolPrintHTMLForTextArea($s)
+{
+	return dol_escape_htmltag(dol_htmlwithnojs(dol_string_onlythesehtmltags(dol_htmlentitiesbr($s), 1, 1, 1)), 1, 1, '', 0, 1);
+}
+
+
+/**
  *  Returns text escaped for inclusion in HTML alt or title or value tags, or into values of HTML input fields.
  *  When we output string on pages, we use
  *  - dol_string_onlythesehtmltags(dol_htmlentitiesbr()) for notes,
@@ -1618,7 +1655,7 @@ function dol_escape_htmltag($stringtoescape, $keepb = 0, $keepn = 0, $noescapeta
 		$tmp = html_entity_decode((string) $stringtoescape, ENT_COMPAT, 'UTF-8');
 	}
 	if (!$keepb) {
-		$tmp = strtr($tmp, array("<b>"=>'', '</b>'=>''));
+		$tmp = strtr($tmp, array("<b>"=>'', '</b>'=>'', '<strong>'=>'', '</strong>'=>''));
 	}
 	if (!$keepn) {
 		$tmp = strtr($tmp, array("\r"=>'\\r', "\n"=>'\\n'));
@@ -2565,7 +2602,7 @@ function dol_format_address($object, $withcountry = 0, $sep = "\n", $outputlangs
 	// See format of addresses on https://en.wikipedia.org/wiki/Address
 	// Address
 	if (empty($mode)) {
-		$ret .= ($extralangcode ? $object->array_languages['address'][$extralangcode] : (empty($object->address) ? '' : preg_replace('/[\n\r]/', $sep, $object->address)));
+		$ret .= ($extralangcode ? $object->array_languages['address'][$extralangcode] : (empty($object->address) ? '' : preg_replace('/(\r\n|\r|\n)+/', $sep, $object->address)));
 	}
 	// Zip/Town/State
 	if (isset($object->country_code) && in_array($object->country_code, array('AU', 'CA', 'US', 'CN')) || !empty($conf->global->MAIN_FORCE_STATE_INTO_ADDRESS)) {
@@ -5241,7 +5278,9 @@ function dol_print_error($db = '', $error = '', $errors = null)
 		print 'This website or feature is currently temporarly not available or failed after a technical error.<br><br>This may be due to a maintenance operation. Current status of operation ('.dol_print_date(dol_now(), 'dayhourrfc').') are on next line...<br><br>'."\n";
 		print $langs->trans("DolibarrHasDetectedError").'. ';
 		print $langs->trans("YouCanSetOptionDolibarrMainProdToZero");
-		define("MAIN_CORE_ERROR", 1);
+		if (!defined("MAIN_CORE_ERROR")) {
+			define("MAIN_CORE_ERROR", 1);
+		}
 	}
 
 	dol_syslog("Error ".$syslog, LOG_ERR);
@@ -7116,7 +7155,7 @@ function dol_string_nohtmltag($stringtoclean, $removelinefeed = 1, $pagecodeto =
  *  @param	int		$cleanalsojavascript	Remove also occurence of 'javascript:'.
  *  @param	int		$allowiframe			Allow iframe tags.
  *  @param	array	$allowed_tags			List of allowed tags to replace the default list
- *  @param	int		$allowlink				Allow link tags.
+ *  @param	int		$allowlink				Allow "link" tags.
  *	@return string	    					String cleaned
  *
  * 	@see	dol_htmlwithnojs() dol_escape_htmltag() strip_tags() dol_string_nohtmltag() dol_string_neverthesehtmltags()
@@ -9152,7 +9191,8 @@ function verifCond($strToEvaluate)
 	$rights = true;
 	if (isset($strToEvaluate) && $strToEvaluate !== '') {
 		//var_dump($strToEvaluate);
-		$rep = dol_eval($strToEvaluate, 1, 1, '1'); // The dol_eval must contains all the global $xxx for all variables $xxx found into the string condition
+		//$rep = dol_eval($strToEvaluate, 1, 0, '1'); // to show the error
+		$rep = dol_eval($strToEvaluate, 1, 1, '1'); // The dol_eval() must contains all the "global $xxx;" for all variables $xxx found into the string condition
 		$rights = $rep && (!is_string($rep) || strpos($rep, 'Bad string syntax to evaluate') === false);
 		//var_dump($rights);
 	}
@@ -11062,12 +11102,17 @@ function dolGetStatus($statusLabel = '', $statusLabelShort = '', $html = '', $st
 /**
  * Function dolGetButtonAction
  *
- * @param string    	$label      Label or tooltip of button. Also used as tooltip in title attribute. Can be escaped HTML content or full simple text.
- * @param string    	$text       Optional : short label on button. Can be escaped HTML content or full simple text.
- * @param string    	$actionType 'default', 'delete', 'danger', 'email', ...
- * @param string|array 	$url        Url for link or array of subbutton description
- * @param string    	$id         Attribute id of button
- * @param int|boolean	$userRight  User action right
+ * @param string    	$label      	Label or tooltip of button. Also used as tooltip in title attribute. Can be escaped HTML content or full simple text.
+ * @param string    	$text       	Optional : short label on button. Can be escaped HTML content or full simple text.
+ * @param string    	$actionType 	'default', 'delete', 'danger', 'email', ...
+ * @param string|array 	$url        	Url for link or array of subbutton description
+ * 										Example when an array is used: $arrayforbutaction = array(
+ *                                      10 => array('lang'=>'propal', 'enabled'=>isModEnabled("propal"), 'perm'=>$user->hasRight('propal', 'creer'), 'label' => 'AddProp', 'url'=>'/comm/propal/card.php?action=create&amp;projectid='.$object->id.'&amp;socid='.$object->socid),
+ *                                      20 => array('lang'=>'orders', 'enabled'=>isModEnabled("commande"), 'perm'=>$user->hasRight('commande', 'creer'), 'label' => 'CreateOrder', 'url'=>'/commande/card.php?action=create&amp;projectid='.$object->id.'&amp;socid='.$object->socid),
+ *                                      30 => array('lang'=>'bills', 'enabled'=>isModEnabled("facture"), 'perm'=>$user->hasRight('facture', 'creer'), 'label' => 'CreateBill', 'url'=>'/compta/facture/card.php?action=create&amp;projectid='.$object->id.'&amp;socid='.$object->socid),
+ *										);
+ * @param string    	$id         	Attribute id of button
+ * @param int|boolean	$userRight  	User action right
  * // phpcs:disable
  * @param array 		$params = [ // Various params for future : recommended rather than adding more function arguments
  *                              'attr' => [ // to add or override button attributes

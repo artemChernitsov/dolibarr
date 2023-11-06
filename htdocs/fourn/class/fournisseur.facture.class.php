@@ -1868,6 +1868,12 @@ class FactureFournisseur extends CommonInvoice
 					if (!$resql) {
 						$error++; $this->error = $this->db->lasterror();
 					}
+					$sql = 'UPDATE '.MAIN_DB_PREFIX."ecm_files set filepath = 'fournisseur/facture/".get_exdir($this->id, 2, 0, 0, $this, 'invoice_supplier').$this->db->escape($this->newref)."'";
+					$sql .= " WHERE filepath = 'fournisseur/facture/".get_exdir($this->id, 2, 0, 0, $this, 'invoice_supplier').$this->db->escape($this->ref)."' and entity = ".$conf->entity;
+					$resql = $this->db->query($sql);
+					if (!$resql) {
+						$error++; $this->error = $this->db->lasterror();
+					}
 
 					// We rename directory ($this->ref = old ref, $num = new ref) in order not to lose the attachments
 					$oldref = dol_sanitizeFileName($this->ref);
@@ -2208,6 +2214,7 @@ class FactureFournisseur extends CommonInvoice
 			$supplierinvoiceline->rang = $rang;
 			$supplierinvoiceline->info_bits = $info_bits;
 			$supplierinvoiceline->fk_remise_except = $fk_remise_except;
+
 
 			$supplierinvoiceline->special_code = ((string) $special_code != '' ? $special_code : $this->special_code);
 			$supplierinvoiceline->fk_parent_line = $fk_parent_line;
