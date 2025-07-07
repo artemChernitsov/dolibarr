@@ -5,7 +5,7 @@ FROM php:8.2-apache
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends libpq-dev; \
-    docker-php-ext-install pdo_pgsql pgsql; \
+    docker-php-ext-install pdo_pgsql pgsql calendar; \
     a2enmod rewrite headers
 
 # Point Apache’s document root to htdocs inside the bind‑mount
