@@ -2297,9 +2297,7 @@ function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventa
 						// It's holiday calendar
 						$tmpholiday->fetch($event->id);
 
-						print $tmpholiday->getNomUrl(1);
-
-						//print $tmpholiday->getNomUrl(1, -1, 0, 'valignmiddle inline-block');
+						print $tmpholiday->getNomUrl(1, -1, 0, 'valignmiddle inline-block');
 
 						$tmpid = $tmpholiday->fk_user;
 						if (empty($cacheusers[$tmpid])) {
