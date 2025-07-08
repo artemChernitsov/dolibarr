@@ -2237,7 +2237,7 @@ function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventa
 								$listofusertoshow .= $cacheusers[$tmpid]->getNomUrl(-3, '', 0, 0, 0, 0, '', 'valignmiddle inline-block');
 							}
 
-							if ($event->type_code != 'BIRTHDAY') {
+							if ($event->type_code != 'BIRTHDAY' && $event->type_code != 'HOLIDAY') {
 								print $titletoshow;
 								print $listofusertoshow.' &nbsp;';
 							}
@@ -2296,6 +2296,8 @@ function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventa
 					if ($event->type_code == 'HOLIDAY') {
 						// It's holiday calendar
 						$tmpholiday->fetch($event->id);
+
+						print $tmpholiday->getNomUrl(1);
 
 						//print $tmpholiday->getNomUrl(1, -1, 0, 'valignmiddle inline-block');
 
