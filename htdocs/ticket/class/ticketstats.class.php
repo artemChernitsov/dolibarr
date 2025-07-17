@@ -123,7 +123,7 @@ class TicketStats extends Stats
 	 */
 	public function getAmountByMonth($year, $format = 0)
 	{
-		$sql = "SELECT date_format(datec,'%m') as dm, sum(".$this->field.")";
+		$sql = "SELECT date_format(datec,'%m') as dm ";
 		$sql .= " FROM ".$this->from;
 		$sql .= " WHERE date_format(datec,'%Y') = '".$this->db->escape($year)."'";
 		$sql .= " AND ".$this->where;
@@ -160,7 +160,7 @@ class TicketStats extends Stats
 	 */
 	public function getAllByYear()
 	{
-		$sql = "SELECT date_format(datec,'%Y') as year, count(*) as nb, sum(".$this->field.") as total, avg(".$this->field.") as avg";
+		$sql = "SELECT date_format(datec,'%Y') as year, count(*) as nb ";
 		$sql .= " FROM ".$this->from;
 		$sql .= " WHERE ".$this->where;
 		$sql .= " GROUP BY year";
