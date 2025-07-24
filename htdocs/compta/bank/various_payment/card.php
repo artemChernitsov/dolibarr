@@ -187,12 +187,12 @@ if (empty($reshook)) {
 
 		//var_dump($currencyofpayment); var_dump($bankaccount->currency_code);
 
-		if (isModEnabled('multicurrency') && $currencyofpayment != $bankaccount->currency_code) {
+		//if (isModEnabled('multicurrency') && $currencyofpayment != $bankaccount->currency_code) {
 			// TODO Support this feature the same way we do it for invoice payment
 			// using the $value_converted = MultiCurrency::getAmountConversionFromInvoiceRate($key, $value, $way);
-			setEventMessages($langs->trans("ErrorVariousPaymentOnBankAccountWithADifferentCurrencyNotYetSupported"), null, 'errors');
-			$error++;
-		}
+			//setEventMessages($langs->trans("ErrorVariousPaymentOnBankAccountWithADifferentCurrencyNotYetSupported"), null, 'errors');
+			//$error++;
+		//}
 
 		if (!$error) {
 			$db->begin();
