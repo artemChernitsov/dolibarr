@@ -8,6 +8,25 @@ RUN set -eux; \
     docker-php-ext-install pdo_pgsql pgsql calendar; \
     a2enmod rewrite headers
 
+# Install & enable Xdebug
+RUN pecl install xdebug \
+ && docker-php-ext-enable xdebug
+
+ # Xdebug base config (Xdebug 3.x)
+# host.docker.internal працює на Mac/Windows і більшості сучасних Linux;
+# для 100% сумісності на Linux додамо extra_hosts у compose (див. крок 2).
+RUN { \
+      echo "zend_extension=xdebug"; \
+      echo "xdebug.mode=debug,develop"; \
+      echo "xdebug.start_with_request=yes"; \
+      echo "xdebug.client_host=host.docker.internal"; \
+      echo "xdebug.client_port=9003"; \
+      echo "xdebug.log=/tmp/xdebug.log"; \
+      echo "xdebug.idekey=VSCODE"; \
+    } > /usr/local/etc/php/conf.d/99-xdebug.ini
+
+
+
 # Point Apache’s document root to htdocs inside the bind‑mount
 ENV APACHE_DOCUMENT_ROOT=/var/www/dolibarr/htdocs
 

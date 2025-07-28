@@ -12,6 +12,9 @@ services:
       DOLI_DB_NAME: dolibarr
       DOLI_DB_USER: dolibarr
       DOLI_DB_PASSWORD: dolipass
+      # ── Xdebug / VS Code integration ─────────────────────────
+      PHP_IDE_CONFIG: "serverName=docker"
+      XDEBUG_MODE: "debug,develop"   # set to "off" to disable Xdebug quickly
     ports:
       - "8080:80"
     volumes:
@@ -19,6 +22,9 @@ services:
       - ./:/var/www/dolibarr:rw
       # Separate, persistent storage for /documents
       - documents_data:/var/www/dolibarr/documents
+    # Ensure host.docker.internal resolves on Linux
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   db:
     image: postgres:16
