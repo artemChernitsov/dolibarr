@@ -8782,6 +8782,9 @@ class Form
 						$sql .= " AND t.rowid = sc.fk_soc AND sc.fk_user = " . ((int) $user->id);
 					}
 				}
+				if ($objecttmp->module === 'recruitment') {
+					$sql .= " AND t.status NOT IN (0, 3, 9)";
+				}
 			}
 			$splittedfieldstoshow = explode(',', $fieldstoshow);
 			foreach ($splittedfieldstoshow as &$field2) {
