@@ -637,7 +637,21 @@ class Documents extends DolibarrApi
 					for ($i = 0 ; $i < $count ; $i++) {
 						foreach ($ecmfile->lines as $line) {
 							if ($filearray[$i]['name'] == $line->filename) {
-								$filearray[$i] = array_merge($filearray[$i], (array) $line);
+								// Copy plain fields only: (array) $line also holds ->db, whose connection resource breaks the JSON output (backport from develop)
+								$filearray[$i]['ref'] = $line->ref;
+								$filearray[$i]['label'] = $line->label;
+								$filearray[$i]['filepath'] = $line->filepath;
+								$filearray[$i]['filename'] = $line->filename;
+								$filearray[$i]['fullpath_orig'] = $line->fullpath_orig;
+								$filearray[$i]['position'] = $line->position;
+								$filearray[$i]['gen_or_uploaded'] = $line->gen_or_uploaded;
+								$filearray[$i]['description'] = $line->description;
+								$filearray[$i]['keywords'] = $line->keywords;
+								$filearray[$i]['cover'] = $line->cover;
+								$filearray[$i]['share'] = $line->share;
+								$filearray[$i]['date_c'] = $line->date_c;
+								$filearray[$i]['fk_user_c'] = $line->fk_user_c;
+								$filearray[$i]['fk_user_m'] = $line->fk_user_m;
 							}
 						}
 					}
