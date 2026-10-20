@@ -159,8 +159,9 @@ class Tickets extends DolibarrApi
 			$num = count($this->ticket->cache_msgs_ticket);
 			$i = 0;
 			while ($i < $num) {
+				// Reset for each message: a message without author must not inherit the previous one's
+				$user_action = new User($this->db);
 				if ($this->ticket->cache_msgs_ticket[$i]['fk_user_author'] > 0) {
-					$user_action = new User($this->db);
 					$user_action->fetch($this->ticket->cache_msgs_ticket[$i]['fk_user_author']);
 				}
 
@@ -172,7 +173,8 @@ class Tickets extends DolibarrApi
 				'fk_user_action_string' => dolGetFirstLastname($user_action->firstname, $user_action->lastname),
 				'message' => $this->ticket->cache_msgs_ticket[$i]['message'],
 				'datec' => $this->ticket->cache_msgs_ticket[$i]['datec'],
-				'private' => $this->ticket->cache_msgs_ticket[$i]['private']
+				'private' => $this->ticket->cache_msgs_ticket[$i]['private'],
+				'code' => $this->ticket->cache_msgs_ticket[$i]['code']
 				);
 				$i++;
 			}

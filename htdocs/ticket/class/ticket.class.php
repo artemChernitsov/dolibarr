@@ -1977,6 +1977,7 @@ class Ticket extends CommonObject
 				$this->cache_msgs_ticket[$i]['subject'] = $obj->label;
 				$this->cache_msgs_ticket[$i]['message'] = $obj->message;
 				$this->cache_msgs_ticket[$i]['private'] = (preg_match('/^TICKET_MSG_PRIVATE/', $obj->code) ? 1 : 0);
+				$this->cache_msgs_ticket[$i]['code'] = $obj->code;
 				$i++;
 			}
 			return $num;
