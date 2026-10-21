@@ -69,6 +69,7 @@ class Leaves extends DolibarrApi
 	 * Without the right "read all leave requests", only own requests and those of subordinates are returned.
 	 * Status: 1 draft, 2 validated (awaiting approval), 3 approved, 4 canceled, 5 refused.
 	 * halfday: 0 full days, -1 starts in the afternoon, 1 ends at noon, 2 both.
+	 * With date_start or date_end, nb_open_day_in_period gives the working days of each leave inside that period.
 	 *
 	 * @param string	$date_start			Only leaves that end on or after this day (YYYY-MM-DD)	{@pattern /^(\d{4}-\d{2}-\d{2})?$/}
 	 * @param string	$date_end			Only leaves that start on or before this day (YYYY-MM-DD)	{@pattern /^(\d{4}-\d{2}-\d{2})?$/}
@@ -163,7 +164,7 @@ class Leaves extends DolibarrApi
 
 		$obj_ret = array();
 		while ($obj = $this->db->fetch_object($resql)) {
-			$obj_ret[] = $this->_leaveFromRow($obj);
+			$obj_ret[] = $this->_leaveFromRow($obj, $date_start, $date_end);
 		}
 		$this->db->free($resql);
 
@@ -190,10 +191,12 @@ class Leaves extends DolibarrApi
 	 * Days are returned as 'YYYY-MM-DD' strings and datetimes as ISO 8601, so the client never has to
 	 * guess the timezone of a timestamp. Missing values are null.
 	 *
-	 * @param	object	$obj	Row from the list query
+	 * @param	object	$obj			Row from the list query
+	 * @param	string	$period_start	Start of the requested period (YYYY-MM-DD) or ''
+	 * @param	string	$period_end		End of the requested period (YYYY-MM-DD) or ''
 	 * @return	array<string,mixed>
 	 */
-	private function _leaveFromRow($obj)
+	private function _leaveFromRow($obj, $period_start = '', $period_end = '')
 	{
 		$dstart = $this->db->jdate($obj->date_debut, 1);
 		$dend = $this->db->jdate($obj->date_fin, 1);
@@ -205,6 +208,23 @@ class Leaves extends DolibarrApi
 			$t = $this->db->jdate($v);
 			return ($t ? dol_print_date($t, 'dayhourrfc', 'gmt') : null);
 		};
+
+		// Working days of the leave inside the requested period. A half day at a clipped end no longer applies.
+		$inperiod = null;
+		if ($period_start || $period_end) {
+			$pstart = $period_start ? dol_stringtotime($period_start.' 00:00:00', 1) : $dstart;
+			$pend = $period_end ? dol_stringtotime($period_end.' 00:00:00', 1) : $dend;
+			$cstart = max($dstart, $pstart);
+			$cend = min($dend, $pend);
+			if ($cstart > $cend) {
+				$inperiod = 0.0;
+			} else {
+				$afternoonstart = (in_array((int) $obj->halfday, array(-1, 2)) && $cstart == $dstart);
+				$morningend = (in_array((int) $obj->halfday, array(1, 2)) && $cend == $dend);
+				$chalfday = ($afternoonstart ? ($morningend ? 2 : -1) : ($morningend ? 1 : 0));
+				$inperiod = (float) num_open_day($cstart, $cend, 0, 1, $chalfday);
+			}
+		}
 
 		return array(
 			'id' => (int) $obj->rowid,
@@ -226,6 +246,8 @@ class Leaves extends DolibarrApi
 			'nb_open_day' => ($obj->nb_open_day === null ? null : (float) $obj->nb_open_day),
 			// nb_open_day is denormalized and not always set: recompute it like the leave card does
 			'nb_open_day_computed' => (float) num_open_day($dstart, $dend, 0, 1, (int) $obj->halfday),
+			// only when date_start or date_end is given
+			'nb_open_day_in_period' => $inperiod,
 			'status' => (int) $obj->statut,
 			'status_code' => (isset(self::$STATUSCODES[(int) $obj->statut]) ? self::$STATUSCODES[(int) $obj->statut] : null),
 			'fk_validator' => $toid($obj->fk_validator),
